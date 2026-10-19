@@ -1,0 +1,346 @@
+{
+  "style": "neon-dj",
+  "motifs": [
+    {
+      "id": "m01",
+      "file": "motif_m01.js",
+      "name": "星海与渺小的人",
+      "keywords": [
+        "星空",
+        "宇宙",
+        "渺小",
+        "孤单",
+        "两个人",
+        "远方"
+      ],
+      "defaultTag": "01 — TINY, BUT REAL",
+      "palette": {
+        "bg1": "#04030f",
+        "bg2": "#0b1a3a",
+        "bg3": "#1c3b6e",
+        "accent": "#7fb6ff",
+        "accent2": "#b9d7ff",
+        "ink": "#eef6ff"
+      },
+      "primary": true
+    },
+    {
+      "id": "m02",
+      "file": "motif_m02.js",
+      "name": "玻璃星球小世界",
+      "keywords": [
+        "小世界",
+        "愿望",
+        "星球",
+        "玻璃",
+        "城市",
+        "祈愿"
+      ],
+      "defaultTag": "02 — LITTLE WORLD",
+      "palette": {
+        "bg1": "#0a0518",
+        "bg2": "#241048",
+        "bg3": "#4a1f7a",
+        "accent": "#a07bff",
+        "accent2": "#ff8ad8",
+        "ink": "#f6efff"
+      },
+      "primary": false
+    },
+    {
+      "id": "m03",
+      "file": "motif_m03.js",
+      "name": "地平线升起的光",
+      "keywords": [
+        "光",
+        "希望",
+        "遇见",
+        "日出",
+        "天亮",
+        "照亮"
+      ],
+      "defaultTag": "03 — FIRST LIGHT",
+      "palette": {
+        "bg1": "#0b0710",
+        "bg2": "#4a2410",
+        "bg3": "#a85a1e",
+        "accent": "#ffc46b",
+        "accent2": "#fff0c8",
+        "ink": "#fff6e6"
+      },
+      "primary": true
+    },
+    {
+      "id": "m04",
+      "file": "motif_m04.js",
+      "name": "眼里的大海",
+      "keywords": [
+        "眼睛",
+        "海",
+        "泪",
+        "看见",
+        "辽阔",
+        "蓝"
+      ],
+      "defaultTag": "04 — OPEN SEA",
+      "palette": {
+        "bg1": "#020a14",
+        "bg2": "#04283c",
+        "bg3": "#0a5a7a",
+        "accent": "#22e6ff",
+        "accent2": "#8ff6ff",
+        "ink": "#eaffff"
+      },
+      "primary": true
+    },
+    {
+      "id": "m05",
+      "file": "motif_m05.js",
+      "name": "天台与拍立得",
+      "keywords": [
+        "天台",
+        "城市夜",
+        "并肩",
+        "拍立得",
+        "回忆",
+        "取代"
+      ],
+      "defaultTag": "05 — NO REPLACE",
+      "palette": {
+        "bg1": "#0b0410",
+        "bg2": "#3a0f35",
+        "bg3": "#8a1f6a",
+        "accent": "#ff5fb4",
+        "accent2": "#ffa8d8",
+        "ink": "#fff0f8"
+      },
+      "primary": true
+    },
+    {
+      "id": "m06",
+      "file": "motif_m06.js",
+      "name": "雨夜窗边",
+      "keywords": [
+        "雨",
+        "窗",
+        "发呆",
+        "陪伴",
+        "夜晚",
+        "灰暗"
+      ],
+      "defaultTag": "06 — THE QUIET",
+      "palette": {
+        "bg1": "#04060f",
+        "bg2": "#131b3a",
+        "bg3": "#2a3560",
+        "accent": "#7d8ff0",
+        "accent2": "#b9c4ff",
+        "ink": "#eef1ff"
+      },
+      "primary": false
+    },
+    {
+      "id": "m07",
+      "file": "motif_m07.js",
+      "name": "拨开阴霾的手",
+      "keywords": [
+        "拨开",
+        "云",
+        "阴霾",
+        "手",
+        "光",
+        "放晴"
+      ],
+      "defaultTag": "07 — PART THE HAZE",
+      "palette": {
+        "bg1": "#0a0714",
+        "bg2": "#2a2340",
+        "bg3": "#6a5a8a",
+        "accent": "#ffd27a",
+        "accent2": "#fff2cc",
+        "ink": "#fff8ea"
+      },
+      "primary": true
+    },
+    {
+      "id": "m08",
+      "file": "motif_m08.js",
+      "name": "收集与淘汰的机器",
+      "keywords": [
+        "收集",
+        "淘汰",
+        "快乐",
+        "删掉",
+        "整理",
+        "分类"
+      ],
+      "defaultTag": "08 — SORT IT OUT",
+      "palette": {
+        "bg1": "#08050f",
+        "bg2": "#1a1238",
+        "bg3": "#2e2266",
+        "accent": "#ffd27a",
+        "accent2": "#ff7ad0",
+        "ink": "#fff4ea"
+      },
+      "primary": true
+    },
+    {
+      "id": "m09",
+      "file": "motif_m09.js",
+      "name": "耳机与情话气泡",
+      "keywords": [
+        "情话",
+        "耳机",
+        "气泡",
+        "甜",
+        "声音",
+        "告白"
+      ],
+      "defaultTag": "09 — SWEET WORDS",
+      "palette": {
+        "bg1": "#0d0512",
+        "bg2": "#3a1040",
+        "bg3": "#8a2a6a",
+        "accent": "#ff77c8",
+        "accent2": "#ffc4e8",
+        "ink": "#fff2fa"
+      },
+      "primary": false
+    },
+    {
+      "id": "m10",
+      "file": "motif_m10.js",
+      "name": "城市烟花",
+      "keywords": [
+        "烟花",
+        "短暂",
+        "绚烂",
+        "夜空",
+        "绽放"
+      ],
+      "defaultTag": "10 — FIREWORK",
+      "palette": {
+        "bg1": "#0c0608",
+        "bg2": "#3a1208",
+        "bg3": "#8a2a0e",
+        "accent": "#ff8a3d",
+        "accent2": "#ffd24a",
+        "ink": "#fff4e4"
+      },
+      "primary": true
+    },
+    {
+      "id": "m11",
+      "file": "motif_m11.js",
+      "name": "冻结的烟花",
+      "keywords": [
+        "一刹那",
+        "定格",
+        "冻结",
+        "瞬间",
+        "停住"
+      ],
+      "defaultTag": "11 — FREEZE",
+      "palette": {
+        "bg1": "#050810",
+        "bg2": "#10203a",
+        "bg3": "#1f4a6a",
+        "accent": "#9fe8ff",
+        "accent2": "#ff9fc8",
+        "ink": "#f2fbff"
+      },
+      "primary": false
+    },
+    {
+      "id": "m12",
+      "file": "motif_m12.js",
+      "name": "漩涡下坠",
+      "keywords": [
+        "漩涡",
+        "沉沦",
+        "无法自拔",
+        "下坠",
+        "吸进去"
+      ],
+      "defaultTag": "12 — SINKING",
+      "palette": {
+        "bg1": "#08040e",
+        "bg2": "#200a3a",
+        "bg3": "#4a1f7a",
+        "accent": "#a36bff",
+        "accent2": "#ff5fb4",
+        "ink": "#f5eeff"
+      },
+      "primary": true
+    },
+    {
+      "id": "m13",
+      "file": "motif_m13.js",
+      "name": "错位的两只钟",
+      "keywords": [
+        "时差",
+        "时钟",
+        "错位",
+        "距离",
+        "晚",
+        "早"
+      ],
+      "defaultTag": "13 — OUT OF SYNC",
+      "palette": {
+        "bg1": "#040c12",
+        "bg2": "#062a3a",
+        "bg3": "#0a4a5a",
+        "accent": "#22e6ff",
+        "accent2": "#ff3cc7",
+        "ink": "#eefcff"
+      },
+      "primary": true
+    },
+    {
+      "id": "m14",
+      "file": "motif_m14.js",
+      "name": "松手让光球升起",
+      "keywords": [
+        "放下",
+        "松手",
+        "升空",
+        "释然",
+        "放手"
+      ],
+      "defaultTag": "14 — LET GO",
+      "palette": {
+        "bg1": "#060a12",
+        "bg2": "#16244a",
+        "bg3": "#2a3a6a",
+        "accent": "#8fb6ff",
+        "accent2": "#cfe0ff",
+        "ink": "#f0f6ff"
+      },
+      "primary": true
+    },
+    {
+      "id": "m15",
+      "file": "motif_m15.js",
+      "name": "燃烧的心",
+      "keywords": [
+        "心",
+        "燃烧",
+        "炙热",
+        "爱自己",
+        "心脏",
+        "火"
+      ],
+      "defaultTag": "15 — LOVE YOURSELF",
+      "palette": {
+        "bg1": "#0c0406",
+        "bg2": "#3a0a0e",
+        "bg3": "#8a1a12",
+        "accent": "#ff5a4d",
+        "accent2": "#ffb36b",
+        "ink": "#fff2e8"
+      },
+      "primary": true
+    }
+  ]
+}

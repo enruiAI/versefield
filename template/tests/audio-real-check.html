@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AudioEngine 自测 · 真实音轨版</title>
+<style>
+  html, body { margin: 0; padding: 14px; background: #0c0b10; color: #d8d2c8;
+    font: 13px/1.6 Consolas, "Microsoft YaHei", monospace; }
+  h1 { font-size: 15px; color: #ffd28a; margin: 0 0 8px; }
+  .hint { color: #8a8478; margin-bottom: 10px; }
+  pre { white-space: pre-wrap; margin: 0; }
+</style>
+</head>
+<body>
+<h1>AudioEngine 自测（真实音轨版）</h1>
+<div class="hint">需要以 <code>--autoplay-policy=no-user-gesture-required</code> 的 headless Chrome 打开；
+  或手动点击页面任意位置后在控制台查看。结果会以 RESULT_JSON 输出。</div>
+<pre id="out">audio-real-check 运行中…</pre>
+
+<script src="../src/test-config.js"></script>
+<script src="../src/audio-data.js"></script>
+<script src="../src/audio.js"></script>
+<script>
+(function () {
+  'use strict';
+  var LOG = [], CHECKS = [], ERRORS = [];
+  var out = document.getElementById('out');
+  function log(s) { LOG.push(s); out.textContent = LOG.join('\n'); console.log('[audio-real-check] ' + s); }
+  window.onerror = function (m, s, l, c) { ERRORS.push(m + ' @' + l); log('ERROR ' + m); };
+  window.addEventListener('unhandledrejection', function (e) { ERRORS.push('rejection: ' + e.reason); });
+  function ok(name, cond, detail) {
+    CHECKS.push({ name: name, pass: !!cond, detail: detail || '' });
+    log((cond ? 'PASS  ' : 'FAIL  ') + name + (detail ? '  [' + detail + ']' : ''));
+  }
+  var AE = window.AudioEngine;
+  if (!AE) { ok('window.AudioEngine 存在', false); finish(); return; }
+
+  ok('window.AudioEngine 存在', true);
+  ok('接口函数完整', ['init', 'start', 'pause', 'resume', 'stop', 'now', 'isPlaying', 'levels'].every(function (k) { return typeof AE[k] === 'function'; }));
+  ok('未开始时 now() === null', AE.now() === null, String(AE.now()));
+  ok('未开始时 isPlaying() === false', AE.isPlaying() === false);
+
+  var ctx = null;
+  try { ctx = AE.init(); } catch (e) { log('init 抛错: ' + e); }
+  ok('init() 返回 AudioContext', !!ctx && typeof ctx.currentTime === 'number');
+  ok('analyser 存在', !!AE.analyser);
+
+  // 等解码完成
+  var waited = 0;
+  var timer = setInterval(function () {
+    waited += 100;
+    if (AE.ready) {
+      clearInterval(timer);
+      ok('内联音轨解码完成，ready === true', true);
+      var EXPECT = window.__EXPECTED_DURATION__ || 0;
+  ok('duration ≈ ' + (EXPECT ? EXPECT.toFixed(2) : '?') + 's', !EXPECT || Math.abs(AE.duration - EXPECT) < 0.5, AE.duration.toFixed(3) + 's');
+      runPlayback();
+    } else if (waited > 8000) {
+      clearInterval(timer);
+      ok('内联音轨解码完成，ready === true', false, '超时');
+      finish();
+    }
+  }, 100);
+
+  function runPlayback() {
+    var peakLevel = { energy: 0, bass: 0, mid: 0, treble: 0 };
+    var badLevel = 0, samples = 0;
+    try { AE.start(0); } catch (e) { log('start 抛错: ' + e); }
+    ok('start(0) 后 isPlaying() === true', AE.isPlaying() === true);
+    var n0 = AE.now();
+    ok('start(0) 后 now() 非 null', n0 !== null, String(n0));
+
+    var iv = setInterval(function () {
+      samples++;
+      var lv = AE.levels();
+      if (!lv || [lv.energy, lv.bass, lv.mid, lv.treble].some(function (v) { return typeof v !== 'number' || !isFinite(v) || v < 0 || v > 1; })) {
+        badLevel++;
+      } else {
+        peakLevel.energy = Math.max(peakLevel.energy, lv.energy);
+        peakLevel.bass = Math.max(peakLevel.bass, lv.bass);
+        peakLevel.mid = Math.max(peakLevel.mid, lv.mid);
+        peakLevel.treble = Math.max(peakLevel.treble, lv.treble);
+      }
+    }, 80);
+
+    setTimeout(function () {
+      clearInterval(iv);
+      var n1 = AE.now();
+      ok('播放 2.5s 后 now() 已增长（> 1.5s）', n1 !== null && n1 > 1.5, 'now=' + (n1 || 0).toFixed(2));
+      ok('now() 未超过 duration', n1 <= AE.duration + 0.01, (n1 || 0).toFixed(2));
+      ok('levels() 值域 0..1 且无 NaN', badLevel === 0, 'bad=' + badLevel);
+      ok('levels().energy 有数据（>0.1）', peakLevel.energy > 0.1, 'max=' + peakLevel.energy.toFixed(2));
+      ok('levels().bass 有数据（>0.1）', peakLevel.bass > 0.1, 'max=' + peakLevel.bass.toFixed(2));
+      ok('levels() 采样次数 > 15', samples > 15, 'samples=' + samples);
+
+      // pause / resume
+      AE.pause();
+      var pa = AE.now();
+      setTimeout(function () {
+        var pb = AE.now();
+        ok('pause() 后 isPlaying() === false', AE.isPlaying() === false);
+        ok('pause() 期间 now() 冻结', Math.abs(pb - pa) < 0.03, pa.toFixed(2) + ' → ' + pb.toFixed(2));
+        AE.resume();
+        var ra = AE.now();
+        setTimeout(function () {
+          var rb = AE.now();
+          ok('resume() 后 now() 继续增长', rb - ra > 0.15, ra.toFixed(2) + ' → ' + rb.toFixed(2));
+
+          // stop / replay
+          AE.stop();
+          ok('stop() 后 now() === null', AE.now() === null, String(AE.now()));
+          ok('stop() 后 isPlaying() === false', AE.isPlaying() === false);
+          AE.start(0);
+          ok('重播后 isPlaying() === true', AE.isPlaying() === true);
+          var rp0 = AE.now();
+          setTimeout(function () {
+            var rp1 = AE.now();
+            ok('重播后 now() 从 0 附近重新增长', rp1 !== null && rp1 > 0.1 && rp1 < 1.2, 'now=' + (rp1 || 0).toFixed(2));
+            ok('全程无未捕获 JS 错误', ERRORS.length === 0, ERRORS.join(' | ') || 'none');
+            AE.stop();
+            finish();
+          }, 500);
+        }, 350);
+      }, 400);
+    }, 2500);
+  }
+
+  function finish() {
+    var pass = CHECKS.filter(function (c) { return c.pass; }).length;
+    var fail = CHECKS.length - pass;
+    log('---------------------------------------------');
+    log('SUMMARY pass=' + pass + ' fail=' + fail);
+    log('RESULT_JSON:' + JSON.stringify({ pass: pass, fail: fail, errors: ERRORS, failed: CHECKS.filter(function (c) { return !c.pass; }) }));
+  }
+})();
+</script>
+</body>
+</html>

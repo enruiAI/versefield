@@ -1,0 +1,30 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 运行/测试产物：可能包含版权音源或生成页面，禁止提交
+research/
+meta/
+assets/
+shots/
+my-lyric-video/
+*.mp3
+*.m4a
+*.wav
+*.flac
+index.html
+*.log

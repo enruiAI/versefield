@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python syntax
+        run: python -m py_compile scripts/*.py
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Node syntax
+        run: |
+          for f in template/tools/*.mjs template/build.mjs; do
+            echo "check $f"
+            node --check "$f"
+          done
+
+      - name: Skill frontmatter
+        run: |
+          grep -q '^name: versefield' SKILL.md
+          grep -q '^description:' SKILL.md
+
+      - name: License files
+        run: |
+          test -f LICENSE
+          grep -q 'Apache License' LICENSE
+          test -f NOTICE

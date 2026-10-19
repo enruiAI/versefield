@@ -1,0 +1,55 @@
+name: Bug report / 问题反馈
+description: 报告一个 bug（生成、音频、场景、QA 等）
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量提供可复现信息。**不要上传版权音源或完整歌词文件**，给公开链接即可。
+  - type: input
+    id: version
+    attributes:
+      label: Versefield 版本 / commit
+      placeholder: v0.1.1 或 commit hash
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 问题领域
+      options:
+        - 搜歌词 / LRC 时间轴
+        - 找音源 / 下载
+        - 起音对齐 / 截取
+        - 场景画面 / 模板
+        - 页面播放 / 音频引擎
+        - QA 脚本
+        - 安装 / 环境
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 实际现象 + 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤 / 命令
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 报错 / 日志
+      description: 完整报错（文本），必要时脱敏
+      render: text
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: Windows 11 / Node 20 / Python 3.12 / Chrome 130

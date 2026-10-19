@@ -1,0 +1,377 @@
+/* =========================================================================
+ * style.css — 页面外壳（霓虹回忆 · DJ Remix 版）
+ * 尺寸统一用 --u = frame 宽度 / 1600，由 core.js 在 resize 时写入。
+ * --pulse 每帧由 core.js 写入（0..1 的鼓点包络），用来做整页的卡点呼吸。
+ * ========================================================================= */
+:root {
+  --cyan: #35e8ff;
+  --magenta: #ff3cc7;
+  --violet: #8a5cff;
+  --gold: #ffc46b;
+  --ink: #eaf6ff;
+  --dim: rgba(210, 238, 255, 0.55);
+  --line: rgba(80, 220, 255, 0.22);
+  --u: 1;
+  --pulse: 0;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; width: 100%; height: 100%;
+  background: #04030a; overflow: hidden;
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(52, 22, 90, 0.35), transparent 62%),
+    radial-gradient(ellipse at 12% 92%, rgba(0, 90, 130, 0.22), transparent 55%),
+    radial-gradient(ellipse at 88% 90%, rgba(130, 20, 90, 0.20), transparent 55%),
+    #04030a;
+}
+#app { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+#frame {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  overflow: hidden;
+  background: #04030a;
+  box-shadow:
+    0 0 140px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(60, 220, 255, 0.10),
+    0 0 90px rgba(60, 180, 255, 0.05);
+  isolation: isolate;
+}
+#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#overlay { position: absolute; inset: 0; pointer-events: none; }
+#overlay > * { pointer-events: none; }
+
+/* ---------------- 顶部标题 ---------------- */
+#topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  padding: calc(var(--u) * 22px) calc(var(--u) * 40px) 0;
+  display: flex; flex-direction: column; align-items: center;
+  z-index: 30;
+  background: linear-gradient(to bottom, rgba(4, 3, 10, 0.62), transparent);
+  text-align: center;
+}
+.model-badge {
+  display: flex; align-items: center; gap: calc(var(--u) * 11px);
+  padding: calc(var(--u) * 7px) calc(var(--u) * 22px) calc(var(--u) * 7px) calc(var(--u) * 16px);
+  border-radius: 999px;
+  border: 1px solid rgba(60, 220, 255, 0.30);
+  background: linear-gradient(180deg, rgba(12, 30, 46, 0.62), rgba(8, 8, 20, 0.55));
+  box-shadow:
+    0 6px 34px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(150, 240, 255, 0.10),
+    0 0 calc(var(--u) * (10px + 26px * var(--pulse))) rgba(40, 220, 255, calc(0.10 + 0.22 * var(--pulse)));
+  backdrop-filter: blur(8px);
+}
+.model-badge .dot {
+  width: calc(var(--u) * 7px); height: calc(var(--u) * 7px); border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 calc(var(--u) * 14px) rgba(60, 235, 255, 0.95);
+  animation: dotPulse 1.9s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+#modelTitle {
+  font-size: calc(var(--u) * 23px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-family: "Bahnschrift", "DIN Alternate", "Microsoft YaHei", sans-serif;
+  background: linear-gradient(100deg, #ffffff 0%, #9ff3ff 30%, #4fd8ff 52%, #ff9fe4 78%, #ffffff 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  white-space: nowrap;
+}
+.model-sub {
+  margin-top: calc(var(--u) * 7px);
+  font-size: calc(var(--u) * 9px);
+  letter-spacing: 0.42em;
+  color: rgba(160, 232, 255, 0.42);
+  font-family: "Bahnschrift", "DIN Alternate", "Microsoft YaHei", sans-serif;
+  text-indent: 0.42em;
+  white-space: nowrap;
+}
+
+/* ---------------- 歌词 ---------------- */
+#lyricLayer {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--u) * 96px);
+  z-index: 15; text-align: center;
+  transition: opacity 0.3s ease;
+}
+#lyricIndex {
+  display: inline-flex; align-items: center; gap: calc(var(--u) * 10px);
+  font-size: calc(var(--u) * 10px);
+  letter-spacing: 0.34em; color: rgba(120, 236, 255, 0.8);
+  margin-bottom: calc(var(--u) * 11px);
+  text-indent: 0.34em;
+  height: calc(var(--u) * 14px);
+  font-family: "Bahnschrift", "DIN Alternate", Consolas, monospace;
+  text-shadow: 0 0 calc(var(--u) * 14px) rgba(50, 220, 255, 0.45);
+}
+#lyricLine {
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  font-size: calc(var(--u) * 44px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(198, 228, 242, 0.62);
+  min-height: calc(var(--u) * 56px);
+  line-height: 1.22;
+  text-shadow:
+    0 calc(var(--u) * 2px) calc(var(--u) * 22px) rgba(0, 0, 0, 0.9),
+    0 0 calc(var(--u) * 30px) rgba(70, 220, 255, 0.25);
+  white-space: nowrap;
+}
+#lyricLine .ch {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.3em) scale(0.98);
+  filter: blur(calc(var(--u) * 5px));
+  transition: opacity 0.24s cubic-bezier(0.2, 0.75, 0.2, 1),
+              transform 0.24s cubic-bezier(0.2, 0.75, 0.2, 1),
+              filter 0.24s ease,
+              color 0.16s ease, text-shadow 0.16s ease;
+  transition-delay: calc(var(--i) * 16ms);
+  will-change: transform, opacity, filter;
+}
+#lyricLine.in .ch { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+#lyricLine .ch.lit {
+  color: #ffffff;
+  text-shadow:
+    0 calc(var(--u) * 2px) calc(var(--u) * 18px) rgba(0, 0, 0, 0.85),
+    0 0 calc(var(--u) * 16px) rgba(160, 250, 255, 0.95),
+    0 0 calc(var(--u) * 42px) rgba(60, 200, 255, 0.75),
+    0 0 calc(var(--u) * 78px) rgba(255, 70, 200, 0.45);
+  transform: translateY(calc(var(--u) * -3px)) scale(1.03);
+}
+#lyricLine .sep { display: inline-block; width: 0.34em; }
+#lyricSub {
+  margin-top: calc(var(--u) * 12px);
+  font-size: calc(var(--u) * 10px);
+  letter-spacing: 0.28em;
+  color: rgba(150, 225, 255, 0.40);
+  font-family: "Bahnschrift", "DIN Alternate", sans-serif;
+  text-indent: 0.28em; height: calc(var(--u) * 15px);
+  white-space: nowrap;
+}
+
+/* ---------------- 底部控制 ---------------- */
+#controls {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: calc(var(--u) * 70px);
+  padding: 0 calc(var(--u) * 36px);
+  display: flex; align-items: center; gap: calc(var(--u) * 16px);
+  background: linear-gradient(to top, rgba(3, 3, 10, 0.94), rgba(3, 3, 10, 0.32) 62%, transparent);
+  z-index: 20; pointer-events: auto;
+  transition: opacity 0.6s ease;
+}
+#frame.idle #controls { opacity: 0.16; }
+#frame.idle #controls:hover { opacity: 1; }
+.ctrl-btn {
+  flex: none; pointer-events: auto; cursor: pointer;
+  height: calc(var(--u) * 33px); min-width: calc(var(--u) * 33px);
+  border-radius: 999px;
+  border: 1px solid rgba(70, 220, 255, 0.30);
+  background: rgba(10, 18, 30, 0.55);
+  color: rgba(210, 244, 255, 0.92);
+  font-size: calc(var(--u) * 12px);
+  letter-spacing: 0.16em;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 calc(var(--u) * 12px);
+  transition: all 0.25s ease;
+  font-family: inherit;
+  backdrop-filter: blur(4px);
+}
+.ctrl-btn:hover {
+  border-color: rgba(90, 235, 255, 0.85);
+  color: #ffffff;
+  box-shadow: 0 0 26px rgba(40, 200, 255, 0.35);
+}
+#playBtn { width: calc(var(--u) * 40px); height: calc(var(--u) * 40px); padding: 0; font-size: calc(var(--u) * 13px); }
+#playBtn .ico { display: block; line-height: 1; transform: translateX(1px); }
+#progressWrap { position: relative; flex: 1 1 auto; height: calc(var(--u) * 30px); display: flex; align-items: center; pointer-events: auto; }
+#progressBg {
+  position: relative; width: 100%; height: calc(var(--u) * 3px);
+  background: rgba(120, 220, 255, 0.12); border-radius: 3px; overflow: visible;
+}
+#progressFill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  background: linear-gradient(90deg, rgba(60, 200, 255, 0.6), #63e7ff 45%, #b58cff 72%, #ff77d8);
+  border-radius: 3px;
+  box-shadow: 0 0 calc(var(--u) * 14px) rgba(70, 210, 255, 0.7);
+}
+#progressHead {
+  position: absolute; top: 50%; left: 0%; width: calc(var(--u) * 7px); height: calc(var(--u) * 7px);
+  border-radius: 50%; background: #ffffff; transform: translate(-50%, -50%);
+  box-shadow: 0 0 calc(var(--u) * 16px) rgba(120, 235, 255, 0.95);
+}
+.tick {
+  position: absolute; top: 50%; width: 1px; height: calc(var(--u) * 7px);
+  background: rgba(150, 235, 255, 0.32); transform: translate(-50%, -50%);
+}
+.tick.major { height: calc(var(--u) * 12px); background: rgba(170, 240, 255, 0.6); }
+#timeLabel {
+  flex: none; font-size: calc(var(--u) * 10.5px); letter-spacing: 0.1em;
+  color: rgba(190, 236, 255, 0.62); font-family: "Bahnschrift", "DIN Alternate", Consolas, monospace;
+  min-width: calc(var(--u) * 86px); text-align: right;
+}
+#audioTag {
+  flex: none; font-size: calc(var(--u) * 9px); letter-spacing: 0.18em;
+  color: rgba(120, 220, 255, 0.48); text-indent: 0.18em;
+  padding-right: calc(var(--u) * 4px);
+}
+
+/* ---------------- 开始遮罩 ---------------- */
+#startOverlay {
+  position: absolute; inset: 0; z-index: 25; pointer-events: auto; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(40, 90, 160, 0.28), transparent 55%),
+    radial-gradient(ellipse at 50% 116%, rgba(110, 30, 120, 0.28), transparent 62%),
+    linear-gradient(180deg, rgba(4, 3, 10, 0.86), rgba(4, 3, 10, 0.96));
+  transition: opacity 0.9s ease, filter 0.9s ease;
+}
+#startOverlay.hide { opacity: 0; filter: blur(7px); pointer-events: none; }
+.start-kicker {
+  font-size: calc(var(--u) * 10px); letter-spacing: 0.5em; color: rgba(120, 230, 255, 0.55);
+  text-indent: 0.5em; margin-bottom: calc(var(--u) * 26px);
+  font-family: "Bahnschrift", "DIN Alternate", sans-serif;
+  animation: fadeUp 1.2s 0.05s both ease;
+}
+.start-title {
+  margin: 0;
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  font-weight: 800;
+  font-size: calc(var(--u) * 76px);
+  letter-spacing: 0.12em; text-indent: 0.12em;
+  background: linear-gradient(96deg, #ffffff 0%, #a6f4ff 26%, #4fd8ff 46%, #c27bff 68%, #ff8fe0 88%, #ffffff 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 calc(var(--u) * 6px) calc(var(--u) * 44px) rgba(60, 180, 255, 0.35))
+          drop-shadow(0 0 calc(var(--u) * 90px) rgba(255, 80, 200, 0.22));
+  animation: fadeUp 1.4s 0.2s both cubic-bezier(0.16, 0.8, 0.24, 1);
+  white-space: nowrap;
+}
+.start-artist {
+  margin-top: calc(var(--u) * 20px);
+  font-size: calc(var(--u) * 13px); letter-spacing: 0.3em; color: rgba(170, 235, 255, 0.66);
+  text-indent: 0.3em;
+  animation: fadeUp 1.4s 0.4s both cubic-bezier(0.16, 0.8, 0.24, 1);
+}
+.start-artist b { color: #ffffff; font-weight: 600; }
+.start-divider {
+  width: calc(var(--u) * 90px); height: 1px; margin: calc(var(--u) * 34px) 0 calc(var(--u) * 30px);
+  background: linear-gradient(90deg, transparent, rgba(90, 225, 255, 0.75), rgba(255, 120, 220, 0.6), transparent);
+  box-shadow: 0 0 calc(var(--u) * 12px) rgba(80, 220, 255, 0.5);
+  animation: fadeIn 1.4s 0.55s both ease;
+}
+#startBtn {
+  pointer-events: auto; cursor: pointer;
+  padding: calc(var(--u) * 14px) calc(var(--u) * 48px);
+  border-radius: 999px;
+  border: 1px solid rgba(90, 230, 255, 0.55);
+  background: linear-gradient(180deg, rgba(20, 70, 100, 0.55), rgba(10, 14, 30, 0.7));
+  color: #eafcff; font-size: calc(var(--u) * 15px); letter-spacing: 0.24em; text-indent: 0.24em;
+  font-family: inherit; font-weight: 600;
+  box-shadow: 0 0 0 0 rgba(60, 220, 255, 0.35), 0 calc(var(--u) * 10px) calc(var(--u) * 44px) rgba(0, 0, 0, 0.55);
+  animation: btnPulse 2.6s 0.8s ease-in-out infinite, fadeUp 1.4s 0.6s both cubic-bezier(0.16, 0.8, 0.24, 1);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(6px);
+}
+@keyframes btnPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(60, 220, 255, 0.25), 0 10px 44px rgba(0, 0, 0, 0.55); }
+  50% { box-shadow: 0 0 0 12px rgba(60, 220, 255, 0.02), 0 10px 54px rgba(0, 0, 0, 0.6); }
+}
+#startBtn:hover {
+  border-color: rgba(140, 245, 255, 0.95);
+  background: linear-gradient(180deg, rgba(30, 100, 130, 0.65), rgba(16, 20, 40, 0.7));
+  transform: translateY(-1px);
+}
+.start-note {
+  margin-top: calc(var(--u) * 24px);
+  font-size: calc(var(--u) * 10px); letter-spacing: 0.22em;
+  color: rgba(150, 218, 255, 0.42); text-indent: 0.22em; text-align: center;
+  animation: fadeIn 1.6s 0.9s both ease;
+  line-height: 2.1;
+}
+.start-eq {
+  display: flex; align-items: flex-end; gap: calc(var(--u) * 4px);
+  height: calc(var(--u) * 30px); margin-top: calc(var(--u) * 24px);
+  animation: fadeIn 1.4s 0.8s both ease;
+}
+ .start-eq i {
+  display: block; width: calc(var(--u) * 4px); border-radius: 2px;
+  background: linear-gradient(to top, rgba(60, 200, 255, 0.15), var(--cyan));
+  animation: eqBounce 1.05s ease-in-out infinite alternate;
+  box-shadow: 0 0 calc(var(--u) * 8px) rgba(60, 220, 255, 0.45);
+}
+@keyframes eqBounce {
+  from { height: 12%; opacity: 0.45; }
+  to { height: 100%; opacity: 1; }
+}
+.start-credit {
+  position: absolute; bottom: calc(var(--u) * 22px);
+  font-size: calc(var(--u) * 9px); letter-spacing: 0.18em;
+  color: rgba(150, 220, 255, 0.26);
+  font-family: "Bahnschrift", "Microsoft YaHei", sans-serif;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(calc(var(--u) * 18px)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------------- 结束遮罩 ---------------- */
+#endOverlay {
+  position: absolute; inset: 0; z-index: 26; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding-bottom: calc(var(--u) * 44px);
+  background: linear-gradient(to top, rgba(3, 3, 10, 0.94) 0%, rgba(3, 3, 10, 0.55) 26%, rgba(3, 3, 10, 0) 58%);
+  opacity: 0; transition: opacity 1.2s ease;
+}
+#endOverlay.show { opacity: 1; pointer-events: auto; }
+.end-kicker { font-size: calc(var(--u) * 9px); letter-spacing: 0.5em; color: rgba(120, 230, 255, 0.55); text-indent: 0.5em; margin-bottom: calc(var(--u) * 14px); }
+.end-title {
+  margin: 0 0 calc(var(--u) * 10px);
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-weight: 800;
+  font-size: calc(var(--u) * 34px); letter-spacing: 0.2em; text-indent: 0.2em;
+  color: #ecfbff; text-shadow: 0 0 calc(var(--u) * 36px) rgba(70, 210, 255, 0.5);
+}
+.end-msg { font-size: calc(var(--u) * 12px); letter-spacing: 0.3em; color: rgba(190, 236, 255, 0.62); text-indent: 0.3em; }
+#replayBtn2 {
+  margin-top: calc(var(--u) * 22px);
+  padding: calc(var(--u) * 12px) calc(var(--u) * 42px);
+  border-radius: 999px; border: 1px solid rgba(90, 230, 255, 0.5);
+  background: rgba(12, 30, 44, 0.6); color: #eafcff; cursor: pointer;
+  font-size: calc(var(--u) * 13px); letter-spacing: 0.24em; text-indent: 0.24em;
+  font-family: inherit; backdrop-filter: blur(6px); transition: all 0.3s ease;
+}
+#replayBtn2:hover { border-color: rgba(140, 245, 255, 0.95); box-shadow: 0 0 34px rgba(50, 210, 255, 0.35); }
+.end-credit { margin-top: calc(var(--u) * 16px); font-size: calc(var(--u) * 9px); letter-spacing: 0.18em; color: rgba(150, 220, 255, 0.28); }
+
+#rotateHint {
+  position: absolute; inset: 0; z-index: 40; display: none;
+  align-items: center; justify-content: center;
+  background: #04030a; color: rgba(190, 238, 255, 0.75);
+  font-size: 14px; letter-spacing: 0.2em; text-align: center; line-height: 2;
+}
+@media (orientation: portrait) and (max-width: 900px) {
+  #rotateHint { display: flex; }
+}
+
+/* 截图/测试模式：关闭所有 CSS 过渡与动画，保证单帧确定性 */
+#frame.instant *,
+#frame.instant *::before,
+#frame.instant *::after {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #startBtn, .model-badge .dot, .start-eq i { animation: none; }
+}

@@ -1,0 +1,35 @@
+name: Feature request / 功能建议
+description: 提一个新功能、场景模板、视觉风格或改进
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 类型
+      options:
+        - 新的场景模板（motif）
+        - 新的视觉风格
+        - 新的音源平台 / 更稳的下载
+        - 更准的歌词-音频对齐
+        - 新功能（批量、导出视频、字幕等）
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 想法
+      description: 想解决什么问题？希望怎么用？
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: 示例 / 参考
+      description: 参考截图、链接、歌词意象等
+  - type: checkboxes
+    id: help
+    attributes:
+      label: 是否愿意提交 PR
+      options:
+        - label: 我可以自己实现并提交 PR
