@@ -1,0 +1,42 @@
+name: Accessibility / 无障碍
+description: 报告无障碍问题（键盘、屏幕阅读器、动态效果、对比度等）
+labels: [accessibility]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量说明你使用的辅助技术和复现步骤。**不要上传版权音源或完整歌词文件。**
+  - type: input
+    id: version
+    attributes:
+      label: VerseField 版本 / commit
+      placeholder: v0.1.5 或 commit hash
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 问题类型
+      options:
+        - 键盘操作 / 焦点
+        - 屏幕阅读器 / 语义
+        - 动态效果 / 闪烁
+        - 对比度 / 字号
+        - 视频导出 / 离线观看
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么 / 期望是什么
+      description: 实际体验 + 你希望改成什么样
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境与辅助技术
+      placeholder: Windows 11 / Chrome 130 / NVDA 2025.1 / 200% 缩放 ...
+    validations:
+      required: true

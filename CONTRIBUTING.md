@@ -4,6 +4,10 @@
 
 仓库根目录**本身就是技能包**（`SKILL.md` 在根），所有路径都相对仓库根。
 
+参与本项目即表示同意遵守 [行为准则（CODE_OF_CONDUCT.md）](CODE_OF_CONDUCT.md)；安全问题请按
+[SECURITY.md](SECURITY.md) 私下报告，不要在公开 Issue 中披露细节。无障碍问题见
+[ACCESSIBILITY.md](ACCESSIBILITY.md)。
+
 ## 开发环境
 
 - Node.js ≥ 18

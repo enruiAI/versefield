@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.5 — 2026-10-20
+
+### 新增（社区规范）
+
+- `CODE_OF_CONDUCT.md`：采用 Contributor Covenant 2.1，明确举报与处理流程。
+- `SECURITY.md`：支持的版本、私密漏洞报告方式、安全范围与提示。
+- `ACCESSIBILITY.md`：无障碍支持情况、已知限制与反馈方式；新增无障碍 issue 模板。
+- `.github/PULL_REQUEST_TEMPLATE.md`：PR 自检清单（语法、版权、截图、文档同步、QA）。
+- GitHub 仓库启用 Discussions 与私密漏洞报告；README 增加“社区与安全”入口。
+- CHANGELOG / 版本号同步到 v0.1.5。
+
 ## v0.1.4 — 2026-10-20
 
 ### 新增

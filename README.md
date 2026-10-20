@@ -71,7 +71,7 @@ cd versefield && ./install.sh
 ```
 
 > **从压缩包安装**：从 [Releases](https://github.com/enruiAI/versefield/releases) 下载
-> `versefield-v0.1.4.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
+> `versefield-v0.1.5.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
 > 文件夹整个放进 `~/.dsh/skills/` 即可。如果解压出来是 `versefield-main/`，先改名为 `versefield`。
 >
 > **确认安装**：`~/.dsh/skills/versefield/SKILL.md` 存在即可，DSH 会自动刷新技能列表。
@@ -206,8 +206,12 @@ versefield/                  ← 仓库根 = DSH 技能目录（SKILL.md 在根�
   README.md                  本文件
   LICENSE                    Apache License 2.0
   NOTICE                     版权声明
+  CODE_OF_CONDUCT.md         社区行为准则（Contributor Covenant 2.1）
+  SECURITY.md                安全政策 / 漏洞报告方式
+  ACCESSIBILITY.md           无障碍声明
+  CONTRIBUTING.md            贡献指南
   install.sh / install.ps1   一键安装到 ~/.dsh/skills/versefield
-  .github/                   CI（Python / Node 语法检查）与 issue 模板
+  .github/                   CI、issue 模板、PR 模板
   scripts/                   音频流水线与项目生成
     fetch_lyrics.py          搜歌词 / 逐句时间轴
     fetch_audio.py           搜完整音源（文件 / URL / 网易云 / B站）
@@ -235,9 +239,15 @@ versefield/                  ← 仓库根 = DSH 技能目录（SKILL.md 在根�
   多层兜底，但仍建议生成后自己听一遍开头两句。
 - 部分平台接口可能变化或需要登录；技能会给出候选清单和手动兜底方案（`--file` 传本地 BGM）。
 
-## 贡献
+## 社区与安全
 
-见 [CONTRIBUTING.md](CONTRIBUTING.md)。新增场景模板、视觉风格、音源适配或 QA 用例都非常欢迎。
+- [行为准则（Code of Conduct）](CODE_OF_CONDUCT.md)
+- [安全政策（Security Policy）](SECURITY.md)
+- [无障碍声明（Accessibility）](ACCESSIBILITY.md)
+- [贡献指南（Contributing）](CONTRIBUTING.md)
+- 问题反馈：[Issues](https://github.com/enruiAI/versefield/issues) · 讨论：[Discussions](https://github.com/enruiAI/versefield/discussions)
+
+新增场景模板、视觉风格、音源适配或 QA 用例都非常欢迎。
 
 ## License
 
@@ -273,6 +283,9 @@ git clone https://github.com/enruiAI/versefield.git ~/.dsh/skills/versefield
 
 Or use the CLI: `fetch_lyrics.py` → `fetch_audio.py` → `align_and_cut.py` → `scaffold.py`.
 See [SKILL.md](SKILL.md) and [docs/plan-schema.md](docs/plan-schema.md).
+
+Community: [Code of Conduct](CODE_OF_CONDUCT.md) · [Security Policy](SECURITY.md) ·
+[Accessibility](ACCESSIBILITY.md) · [Contributing](CONTRIBUTING.md).
 
 Apache-2.0 licensed. Demo screenshots are for illustration only; no audio or lyrics are bundled in this
 repository.
