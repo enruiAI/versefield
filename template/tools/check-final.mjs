@@ -4,13 +4,16 @@
  *   （标题、场景数、时长全部来自项目根目录 project.json，不写死某首歌）
  * - 点击开始：音频与画面时间同步、逐句歌词推进
  * - 逐场景冻结截图（shots/final_<id>.png）并校验 active/lyric 与时间轴一致
+ *
+ * 速度：截图阶段只加载一次页面，用 ?export=1 + __player.renderAt(t) 逐场景定格，
+ * 不再为每个场景重新导航、也不用等动画稳定（老版本 15 个场景约 16s，现在约 4~5s）。
  */
 import { launch } from './browser.mjs';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ROOT, PROJECT, SCENES, sceneMid, projectDuration } from './project.mjs';
 
-const fileUrl = 'file:///' + resolve(ROOT, 'index.html').replace(/\\/g, '/');
+const fileUrl = 'file:///' + resolve(ROOT, 'index.html').replace(/\\/g, '/') + '?';
 mkdirSync(resolve(ROOT, 'shots'), { recursive: true });
 
 const DURATION = projectDuration(PROJECT);
@@ -26,7 +29,7 @@ page.on('pageerror', e => consoleErrors.push('pageerror: ' + e.message));
 page.on('console', m => { if (m.type() === 'error') consoleErrors.push('console: ' + m.text()); });
 
 await page.goto(fileUrl, { waitUntil: 'load' });
-await new Promise(r => setTimeout(r, 1500));
+await new Promise(r => setTimeout(r, 1200));
 
 const before = await page.evaluate((header) => ({
   overlayVisible: !document.getElementById('startOverlay').classList.contains('hide'),
@@ -59,21 +62,24 @@ const mid = await page.evaluate(() => {
   };
 });
 
-// 逐场景冻结截图 + 场景/歌词校验
+// 逐场景冻结截图 + 场景/歌词校验：一次加载，逐帧定格
+await page.goto(fileUrl + 'export=1&t=0', { waitUntil: 'load' });
+await page.waitForFunction(() => window.__player && window.__player.renderAt, { timeout: 15000 });
 const shots = [];
 for (const [id, t] of EXPECT) {
-  await page.goto(fileUrl + '?t=' + t, { waitUntil: 'load' });
-  await new Promise(r => setTimeout(r, 850));
-  const st = await page.evaluate(() => ({
-    active: window.__player.state.activeId,
-    lyric: document.getElementById('lyricLine').textContent,
-    sub: document.getElementById('lyricSub').textContent,
-    time: document.getElementById('timeLabel').textContent,
-    hiddenLayers: Array.from(document.querySelectorAll('#sceneRoot .scene-layer')).filter(el => el.style.display === 'none').length,
-    visibleSceneNodes: document.querySelectorAll('#sceneRoot .scene-layer:not([style*="display: none"]) *').length,
-    errs: window.__errors || []
-  }));
-  await page.screenshot({ path: resolve(ROOT, 'shots', 'final_' + id + '.png') });
+  const st = await page.evaluate((tt) => {
+    window.__player.renderAt(tt);
+    return {
+      active: window.__player.state.activeId,
+      lyric: document.getElementById('lyricLine').textContent,
+      sub: document.getElementById('lyricSub').textContent,
+      time: document.getElementById('timeLabel').textContent,
+      hiddenLayers: Array.from(document.querySelectorAll('#sceneRoot .scene-layer')).filter(el => el.style.display === 'none').length,
+      visibleSceneNodes: document.querySelectorAll('#sceneRoot .scene-layer:not([style*="display: none"]) *').length,
+      errs: window.__errors || []
+    };
+  }, t);
+  await page.screenshot({ path: resolve(ROOT, 'shots', 'final_' + id + '.png'), optimizeForSpeed: true });
   shots.push({ id, t, active: st.active, okActive: st.active === id, lyric: st.lyric, time: st.time, hiddenLayers: st.hiddenLayers, visibleSceneNodes: st.visibleSceneNodes, errs: st.errs });
 }
 

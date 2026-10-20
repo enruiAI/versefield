@@ -8,10 +8,17 @@
  *   输出默认在交付目录根（_project 的上一级）：lyric-video.mp4
  *
  * 原理（离线逐帧，不是录屏）：
- *   1. 无头 Chrome 打开 _project/index.html?export=1：关闭主循环推进、关闭 CSS 动画；
+ *   1. 无头 Chrome 打开 index.html?export=1：关闭主循环推进、关闭 CSS 动画；
  *   2. 逐帧调用 window.__player.renderAt(t) 并截图 PNG 序列（画面含淡入淡出）；
- *   3. ffmpeg 把 PNG 序列 + _project/assets/song_clip.mp3 合成为 H.264/AAC MP4。
+ *   3. ffmpeg 把图片序列 + _project/assets/song_clip.mp3 合成为 H.264/AAC MP4。
  *   音轨不经过浏览器，画面按时间轴逐帧确定性渲染，不会掉帧/音画漂移。
+ *
+ * 速度：
+ *   - 截图默认开启 optimizeForSpeed（比普通截图快 3~4 倍）；
+ *   - 默认用多个 Chrome 进程并行渲染不同帧（--workers，默认 min(4, CPU-1)），
+ *     在 16 线程机器上 1600×900 约 0.1s/帧（老版本约 0.6s/帧）；
+ *   - 每个进程写自己的帧子目录，最后合并再用 ffmpeg 读取：多个进程同写一个目录时
+ *     Windows 文件系统/杀毒扫描容易串行化，反而变慢。
  *
  * 依赖：puppeteer-core（npm install --prefix tools）+ ffmpeg
  *   ffmpeg 查找顺序：--ffmpeg 参数 → FFMPEG_PATH 环境变量 → PATH → imageio-ffmpeg（pip install imageio-ffmpeg）
@@ -23,16 +30,19 @@
  *   --audio <path>    音轨（默认 _project/assets/song_clip.mp3）
  *   --start / --end   只导出一段（秒；默认整片）
  *   --crf 20          H.264 质量（越小越清晰、文件越大）
- *   --preset medium   x264 preset（fast / medium / slow）
+ *   --preset fast     x264 preset（fast / medium / slow）
+ *   --workers 4       并行 Chrome 进程数（1 = 单进程；默认按 CPU 自动取 1~4）
+ *   --format png      帧格式：png（无损，默认）/ jpeg（更快，体积更小）
+ *   --quality 92      --format jpeg 时的质量（0~100）
  *   --show-ui         保留底部播放控件（默认隐藏，只留画面+歌词）
- *   --keep-frames     保留中间 PNG 帧目录（调试用）
+ *   --keep-frames     保留中间帧目录（调试用）
  *   --ffmpeg <path>   指定 ffmpeg 可执行文件
  */
 import { launch } from './browser.mjs';
 import { ROOT, PROJECT, projectDuration } from './project.mjs';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import { cpus, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 function flag(name) { return process.argv.includes('--' + name); }
@@ -99,6 +109,24 @@ function runFfmpeg(ffmpeg, args) {
   });
 }
 
+async function openPage(browser, start, showUI, scale) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: scale });
+  const url = 'file:///' + resolve(ROOT, 'index.html').replace(/\\/g, '/') + '?export=1&t=' + start;
+  await page.goto(url, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForFunction(() => window.__player && window.TL && window.SCENES, { timeout: 15000 });
+  if (!showUI) {
+    await page.addStyleTag({ content: '#controls,#startOverlay,#endOverlay,#rotateHint{display:none!important}' });
+  }
+  // 等字体与首帧就绪，避免第一帧字体还没替换
+  await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  return { page, errors };
+}
+
 async function main() {
   const fps = Math.max(1, Math.round(num('fps', 30)));
   const scale = Math.max(0.2, num('scale', 1));
@@ -110,9 +138,14 @@ async function main() {
   const out = resolve(DELIVERY, String(opt('out', 'lyric-video.mp4')));
   const audio = resolve(ROOT, String(opt('audio', 'assets/song_clip.mp3')));
   const crf = String(Math.round(num('crf', 20)));
-  const preset = String(opt('preset', 'medium'));
+  const preset = String(opt('preset', 'fast'));
   const showUI = flag('show-ui');
   const keepFrames = flag('keep-frames');
+  const formatArg = String(opt('format', 'png')).toLowerCase();
+  const format = (formatArg === 'jpeg' || formatArg === 'jpg') ? 'jpeg' : 'png';
+  const quality = Math.max(1, Math.min(100, Math.round(num('quality', 92))));
+  const maxWorkers = Math.max(1, Math.min(8, cpus().length - 1 || 1));
+  const workers = Math.max(1, Math.min(maxWorkers, Math.round(num('workers', Math.min(4, maxWorkers)))));
   const fadeIn = Math.max(0, Number(PROJECT.fade_in != null ? PROJECT.fade_in : 0.6) || 0);
   const fadeOut = Math.max(0, Number(PROJECT.fade_out != null ? PROJECT.fade_out : 0.8) || 0);
 
@@ -125,33 +158,54 @@ async function main() {
   const frameCount = Math.max(1, Math.round((end - start) * fps));
   const framesDir = mkdtempSync(join(tmpdir(), 'versefield-frames-'));
   mkdirSync(dirname(out), { recursive: true });
+  // 每个进程写自己的子目录：多个 Chrome 同时往同一个目录写大量 PNG 时，
+  // Windows 文件系统/杀毒扫描会串行化，4 进程反而比单进程慢好几倍。
+  const workerDirs = Array.from({ length: workers }, (_, w) => {
+    const d = join(framesDir, 'w' + w);
+    mkdirSync(d, { recursive: true });
+    return d;
+  });
+  const frameName = (i) => String(i).padStart(6, '0') + '.' + format;
 
-  const browser = await launch();
   const errors = [];
-  let page = null;
-  try {
-    page = await browser.newPage();
-    page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-    page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-    await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: scale });
-    const url = 'file:///' + resolve(ROOT, 'index.html').replace(/\\/g, '/') + '?export=1&t=0';
-    await page.goto(url, { waitUntil: 'load', timeout: 30000 });
-    await page.waitForFunction(() => window.__player && window.TL && window.SCENES, { timeout: 15000 });
-    if (!showUI) {
-      await page.addStyleTag({ content: '#controls,#startOverlay,#endOverlay,#rotateHint{display:none!important}' });
-    }
-    await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  let done = 0;
+  const timer = setInterval(() => {
+    process.stderr.write(`\r[export] ${done}/${frameCount} 帧（${workers} 进程）`);
+  }, 1000);
+  const t0 = Date.now();
 
-    for (let i = 0; i < frameCount; i++) {
-      const t = start + i / fps;
-      await page.evaluate((tt) => window.__player.renderAt(tt), t);
-      await page.screenshot({ path: join(framesDir, String(i).padStart(6, '0') + '.png') });
-      if (i % Math.max(1, Math.round(fps)) === 0) process.stderr.write(`\r[export] ${i}/${frameCount} 帧`);
-    }
-    process.stderr.write(`\r[export] ${frameCount}/${frameCount} 帧\n`);
+  try {
+    await Promise.all(Array.from({ length: workers }, async (_, w) => {
+      const browser = await launch({ protocolTimeout: 180000 });
+      try {
+        const opened = await openPage(browser, start, showUI, scale);
+        errors.push(...opened.errors);
+        const page = opened.page;
+        for (let i = w; i < frameCount; i += workers) {
+          const t = start + i / fps;
+          await page.evaluate((tt) => window.__player.renderAt(tt), t);
+          await page.screenshot({
+            path: join(workerDirs[w], frameName(i)),
+            type: format,
+            ...(format === 'jpeg' ? { quality } : {}),
+            optimizeForSpeed: true,
+          });
+          done++;
+        }
+      } finally {
+        await browser.close().catch(() => {});
+      }
+    }));
   } finally {
-    await browser.close().catch(() => {});
+    clearInterval(timer);
   }
+  // 把各进程的帧合并回同一目录，ffmpeg 需要连续序号
+  for (const d of workerDirs) {
+    for (const f of readdirSync(d)) renameSync(join(d, f), join(framesDir, f));
+    rmSync(d, { recursive: true, force: true });
+  }
+  const captureSec = Math.round((Date.now() - t0) / 1000);
+  process.stderr.write(`\r[export] ${frameCount}/${frameCount} 帧（${workers} 进程，渲染 ${captureSec}s）\n`);
 
   const audioFilters = [];
   if (start <= 0.001 && fadeIn > 0) audioFilters.push(`afade=t=in:st=0:d=${fadeIn}`);
@@ -161,7 +215,7 @@ async function main() {
 
   await runFfmpeg(ffmpeg, [
     '-y', '-hide_banner', '-loglevel', 'error',
-    '-framerate', String(fps), '-i', join(framesDir, '%06d.png'),
+    '-framerate', String(fps), '-i', join(framesDir, '%06d.' + format),
     '-ss', String(start), '-i', audio,
     '-t', String(end - start),
     ...(audioFilters.length ? ['-af', audioFilters.join(',')] : []),
@@ -172,6 +226,7 @@ async function main() {
     out,
   ]);
 
+  const encodeSec = Math.round((Date.now() - t0) / 1000) - captureSec;
   if (!keepFrames) rmSync(framesDir, { recursive: true, force: true });
 
   const result = {
@@ -184,8 +239,13 @@ async function main() {
     width: Math.round(1600 * scale),
     height: Math.round(900 * scale),
     scale,
+    workers,
+    format,
     audio,
     ffmpeg,
+    captureSec,
+    encodeSec,
+    elapsedSec: Math.round((Date.now() - t0) / 1000),
     sizeBytes: existsSync(out) ? statSync(out).size : null,
     framesDir: keepFrames ? framesDir : null,
     errors,

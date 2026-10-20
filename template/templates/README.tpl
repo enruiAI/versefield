@@ -51,14 +51,17 @@
 
 ```powershell
 cd _project
-npm install --prefix tools          # 首次需要装 puppeteer-core
+npm install --prefix tools          # 每个新项目首次（约 20s）
 node build.mjs                      # 打包单文件，并自动同步 ../index.html
-node tools/validate.mjs             # {{LINE_COUNT}} 个场景：加载、全时间轴 update、path 语法、性能
-node tools/check-final.mjs          # 0 外部请求 / 0 console error / 逐场景截图+active+lyric 校验
-node tools/check-real-full.mjs      # 真音频完整播放：切点时间比对 + 结束/重播（约 {{PLAY_QA_SECONDS}}s）
-node tools/test-real-audio.mjs      # 音轨引擎自测（24 项断言）
-node tools/contact-sheet.mjs        # 重新生成 _project/shots/contact_sheet.png
+
+node tools/qa.mjs --fast            # 迭代期一键 QA：约 20s，跳过整片实时播放
+node tools/qa.mjs                   # 交付前完整 QA：约 {{PLAY_QA_SECONDS}}s + 25s
 ```
+
+`qa.mjs` 依次跑：validate（场景加载/更新/path/性能）、check-final（0 外部请求 / 0 console error /
+逐场景截图+active+lyric）、test-real-audio（24 项断言）、check-autoplay-fallback（海报+点击起播）、
+check-real-full（真音频完整播放，切点误差 ≤0.45s，`--fast` 跳过）、contact-sheet（接触表）。
+也可以单独跑其中任意一个。
 
 ### 导出 MP4（可选）
 
@@ -68,9 +71,12 @@ node tools/contact-sheet.mjs        # 重新生成 _project/shots/contact_sheet.
 node tools/export-video.mjs                         # ../lyric-video.mp4（30fps / 1600×900）
 node tools/export-video.mjs --fps 50 --scale 1.2    # 50fps / 1920×1080
 node tools/export-video.mjs --out chorus.mp4        # ../chorus.mp4
+node tools/export-video.mjs --workers 2             # 低配机器降压（默认 4 进程并行）
+node tools/export-video.mjs --format jpeg --quality 92   # 更快，轻微压缩
 ```
 
 逐帧离线渲染 + ffmpeg 合成，不是录屏；需要 ffmpeg（PATH / `FFMPEG_PATH` / `pip install imageio-ffmpeg`）。
+默认多进程并行 + 快速截图，30s 片段约 2 分钟；50fps/1080p 会相应变长。
 
 ## 六、自测结论（生成时）
 

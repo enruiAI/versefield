@@ -613,7 +613,7 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         "SOURCE_AUDIO": (plan.get("sources", {}) or {}).get("audio") or audio_info.get("source") or "公开平台",
         "SOURCE_LYRICS": (plan.get("sources", {}) or {}).get("lyrics") or "公开歌词平台（见 project.json）",
         "PLAY_QA_SECONDS": str(round(total + 5)),
-        "QA_RESULTS": plan.get("qa_results") or ("- 场景校验：待运行 `node tools/validate.mjs`\n- 单文件产物：待运行 `node tools/check-final.mjs`"),
+        "QA_RESULTS": plan.get("qa_results") or ("- 场景校验：待运行 `node tools/qa.mjs --fast`（迭代）/ `node tools/qa.mjs`（交付前）"),
         "GENERATED_AT": datetime.now(CST).isoformat(timespec="seconds"),
     })
     (out_dir / "README.md").write_text(readme, encoding="utf-8")
@@ -716,9 +716,9 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
             "cd \"%s\"" % work_dir,
             "npm install --prefix tools",
             "node build.mjs",
-            "node tools/validate.mjs && node tools/check-final.mjs",
-            "node tools/check-real-full.mjs && node tools/test-real-audio.mjs",
-            "node tools/contact-sheet.mjs",
+            "node tools/qa.mjs --fast   # 迭代期：约 20s（跳过整片实时播放）",
+            "node tools/qa.mjs          # 交付前完整 QA（含整片播放，约 时长 + 25s）",
+            "node tools/export-video.mjs  # 可选：默认 4 进程并行，约 2 分钟/30s 片段",
         ],
     }
 

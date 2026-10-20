@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.2.1 — 2026-10-20
+
+### 性能（同样的生成结果，整体更快）
+
+- **MP4 导出提速约 5 倍**：`tools/export-video.mjs` 默认用 4 个无头 Chrome 进程并行渲染不同帧，
+  截图开启 `optimizeForSpeed`，x264 默认 `fast`；30s 片段 1600×900 从约 9 分钟降到约 2 分钟
+  （实测 552s → 116s，受机器负载影响会波动）。
+  新增 `--workers`（默认 min(4, CPU-1)）、`--format png|jpeg`、`--quality`；输出 JSON 增加
+  `captureSec` / `encodeSec` / `workers` / `format`。
+- **导出模式不再空转重绘**：`?export=1` 下页面主循环只渲染一次，画面完全由 `renderAt(t)` 驱动。
+  之前每帧都重绘同一画面，既占 CPU，也让多进程并行互相拖累；这是本次提速的关键。
+- 多进程导出时每个进程写**独立的帧子目录**，最后合并给 ffmpeg；避免多进程同写一个目录时
+  Windows 文件系统/杀毒扫描把写入串行化。
+- **QA 提速**：`check-final` / `contact-sheet` 改成一次加载页面 + `?export=1` 逐帧定格截图，
+  不再为每个场景重新导航、不再等 0.85s 动画稳定；15 个场景的 QA 从约 28s 降到约 8s。
+- **新增 `tools/qa.mjs`**：一键跑完整 QA；`--fast` 跳过整片实时播放，迭代期约 20s。
+  交付前仍跑完整版（含 `check-real-full` 的整片播放）。
+- `test-real-audio` / `check-autoplay-fallback` 改用统一的 `tools/browser.mjs`（不再写死 Chrome 路径 / cwd），
+  在 macOS/Linux 或自定义 `CHROME_PATH` 下也能跑。
+- `scaffold.py` 的 `next` 提示与生成项目 README 同步新命令。
+
+### 说明
+
+- 画面、时间轴、布局、淡入淡出与 v0.2.0 完全一致，只是导出/QA 更快。
+- 旧项目直接把 `_project/tools/` 换成新版本即可享受加速（`core.js` 的静态渲染改动需要重新 build）。
+
 ## v0.2.0 — 2026-10-20
 
 ### 变更（生成结果更好找）

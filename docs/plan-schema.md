@@ -122,7 +122,7 @@
 - 生成的 `project.json` 与 plan 类似，但 `scenes` 里是场景级时间（s01 从 0 开始），并额外记录
   `scene_policy / custom_ratio / palette_shift / fade / fade_in / fade_out / warnings`；tools 的 QA 脚本读它。
 - 交付目录结构与视频导出：最终成品（`index.html`、`README.md`、`lyric-video.mp4`）放在输出目录根，
-  工程文件统一放进 `<输出目录>/_project/`；QA / 导出命令都在 `_project/` 下执行。
+  工程文件统一放进 `<输出目录>/_project/`；QA（`node tools/qa.mjs --fast`）与导出命令都在 `_project/` 下执行。
 
 ## 示例：用户要求「尽量原创」
 

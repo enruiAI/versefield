@@ -45,6 +45,8 @@ VerseField（词场）是一个 **DSH Skill + 命令行工具**：给一首歌�
   `src/`、`tools/`、`assets/` 等工程文件统一收进 `_project/`，删掉也不影响网页播放。
 - **可导出 MP4**：生成项目自带 `tools/export-video.mjs`，无头 Chrome 按时间轴逐帧渲染 + ffmpeg 合成音轨
   （不是录屏），默认 30fps/1600×900，可出 50fps/1920×1080，支持只导一段。
+- **更快**：视频导出默认多进程并行 + 快速截图（30s 片段约 2 分钟）；QA 一条命令，迭代期 `--fast` 约 20s；
+  截图类 QA 改为一次加载逐帧定格，不再逐场景重新导航。
 - **可扩展**：场景模板、视觉风格、QA 工具都是独立文件，方便继续加。
 
 ## 快速开始
@@ -75,7 +77,7 @@ cd versefield && ./install.sh
 ```
 
 > **从压缩包安装**：从 [Releases](https://github.com/enruiAI/versefield/releases) 下载
-> `versefield-v0.2.0.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
+> `versefield-v0.2.1.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
 > 文件夹整个放进 `~/.dsh/skills/` 即可。如果解压出来是 `versefield-main/`，先改名为 `versefield`。
 >
 > **确认安装**：`~/.dsh/skills/versefield/SKILL.md` 存在即可，DSH 会自动刷新技能列表。
@@ -167,8 +169,15 @@ npm install --prefix my-lyric-video/tools   # 首次
 
 ```bash
 cd _project
-npm install --prefix tools       # 首次
+npm install --prefix tools       # 每个新项目首次（约 20s）
 node build.mjs                   # 打包，并自动同步 ../index.html
+node tools/qa.mjs --fast         # 迭代期一键 QA：约 20s，跳过整片实时播放
+node tools/qa.mjs                # 交付前完整 QA：约 片段时长 + 25s
+```
+
+`qa.mjs` 依次跑下面这些单项（也可以单独执行）：
+
+```bash
 node tools/validate.mjs          # 全部场景：加载 / update / 非法 path / 节点数 / 性能
 node tools/check-final.mjs       # 单文件：0 外部请求 / 0 console error / 逐场景截图 + active/lyric
 node tools/check-real-full.mjs   # 真音频完整播放：切点误差 / 结束页 / 重播
@@ -180,6 +189,9 @@ node tools/contact-sheet.mjs     # 全片接触表（_project/shots/）
 **门禁标准**：`validate.failed=0`、`check-final.summary` 全 true、`check-real-full.allOk=true`、
 `test-real-audio` 全过、`grep "TODO — CUSTOM SCENE"` 为空、接触表人工过目。
 
+**速度**：`check-final` / `contact-sheet` 已改为「一次加载 + `?export=1` 逐帧定格截图」，
+不再为每个场景重新导航；`--fast` 跳过整片实时播放，适合改场景后的快速回归。
+
 ## 导出 MP4
 
 生成的项目里自带离线逐帧导出工具（不是录屏，画面不会掉帧、音画不会漂移）。
@@ -190,15 +202,19 @@ cd _project
 node tools/export-video.mjs                    # ../lyric-video.mp4（30fps / 1600×900）
 node tools/export-video.mjs --fps 50 --scale 1.2   # 50fps / 1920×1080
 node tools/export-video.mjs --start 6 --end 18 --out chorus.mp4   # ../chorus.mp4，只导一段
+node tools/export-video.mjs --workers 2        # 低配机器降压（默认 4 进程并行）
+node tools/export-video.mjs --format jpeg --quality 92   # 更快，轻微压缩
 ```
 
-- 原理：无头 Chrome 打开 `_project/index.html?export=1` 逐帧调用 `renderAt(t)` 截图，再用 ffmpeg 把 PNG 序列
+- 原理：无头 Chrome 打开 `_project/index.html?export=1` 逐帧调用 `renderAt(t)` 截图，再用 ffmpeg 把图片序列
   和项目音轨合成为 H.264/AAC MP4；音轨直接取 `_project/assets/song_clip.mp3`，不经过浏览器。
+- 速度：默认 4 个 Chrome 进程并行 + 快速截图（`optimizeForSpeed`），导出模式不再空转重绘；
+  30s 片段约 2 分钟（v0.2.1 前约 9 分钟；机器负载高时会慢一些）。`--workers` 控制并行度，低配机器建议 2。
 - 画面淡入淡出由页面按时间渲染；导出整片时音轨也做对应的淡入/淡出。
 - 依赖：`npm install --prefix tools`（puppeteer-core）+ ffmpeg（PATH / `FFMPEG_PATH` /
   `pip install imageio-ffmpeg`）。
 - 参数：`--fps`、`--scale`、`--out`（相对交付目录）、`--start/--end`、`--crf`、`--preset`、
-  `--show-ui`（保留控件）、`--keep-frames`（保留 PNG 帧调试）。
+  `--workers`、`--format png|jpeg`、`--quality`、`--show-ui`（保留控件）、`--keep-frames`（保留帧调试）。
 
 ## 环境要求
 

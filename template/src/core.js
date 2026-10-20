@@ -658,9 +658,8 @@
   /* ------------------------------ 主循环 ------------------------------ */
   function tick(now) {
     if (state.static) {
-      // 视频导出模式：只渲染 renderAt() 设定的时间，不推进动画/音频
-      render(state.t, 0);
-      raf(tick);
+      // 视频导出/定格截图模式：画面只由 renderAt() 驱动。
+      // 不在这里循环重绘同一帧——重绘会持续占用 CPU，导致截图变慢、多进程并行互相拖累。
       return;
     }
     var dt = Math.min(0.06, Math.max(0, (now - state.lastNow) / 1000));

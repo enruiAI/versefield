@@ -1,21 +1,26 @@
-import puppeteer from 'puppeteer-core';
+/**
+ * 自动播放兜底检查：node tools/check-autoplay-fallback.mjs
+ * 浏览器拦截自动播放时，应显示「点击开始」海报；点击后能正常起播。
+ * 速度：一次加载 + 2.5s 播放，约 4s。
+ */
+import { launch } from './browser.mjs';
+import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const url = 'file:///' + resolve(process.cwd(), 'index.html').replace(/\\/g, '/');
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
-  args: ['--no-sandbox','--hide-scrollbars','--allow-file-access-from-files'],
-  defaultViewport: { width: 1600, height: 900 } });
+import { ROOT } from './project.mjs';
+
+mkdirSync(resolve(ROOT, 'shots'), { recursive: true });
+const url = 'file:///' + resolve(ROOT, 'index.html').replace(/\\/g, '/');
+const browser = await launch();
 const page = await browser.newPage();
 const errors = [];
-const fs = await import('node:fs');
 page.on('pageerror', e => errors.push(e.message));
 await page.goto(url, { waitUntil: 'load' });
 await new Promise(r => setTimeout(r, 1200));
 const auto = await page.evaluate(() => {
   const p = window.__player.state;
-  return { overlayVisible: !document.getElementById('startOverlay').classList.contains('hide'), started: p.started, audioOn: p.audioOn, ctxState: (() => { try { return AudioEngine.init().state; } catch(e){ return 'err'; } })() };
+  return { overlayVisible: !document.getElementById('startOverlay').classList.contains('hide'), started: p.started, audioOn: p.audioOn, ctxState: (() => { try { return AudioEngine.init().state; } catch (e) { return 'err'; } })() };
 });
-await page.screenshot({ path: resolve(process.cwd(), 'shots', 'v2_start_overlay.png') });
+await page.screenshot({ path: resolve(ROOT, 'shots', 'v2_start_overlay.png'), optimizeForSpeed: true });
 await page.click('#startBtn');
 await new Promise(r => setTimeout(r, 2500));
 const after = await page.evaluate(() => {
@@ -27,3 +32,4 @@ const after = await page.evaluate(() => {
 });
 console.log(JSON.stringify({ auto, after, errors }, null, 2));
 await browser.close();
+process.exit(errors.length ? 1 : 0);

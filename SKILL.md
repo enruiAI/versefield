@@ -168,7 +168,8 @@ scaffold 会生成 **交付目录** 和 **工程目录** 两层：
 
 ### Step 6 画 custom 场景（默认方案下占多数）
 
-custom 句通常占多数（视歌词与模板贴合度而定），**按 2–4 个场景一组派给多个画师并行**（subagent / teammate）。
+custom 句通常占多数（视歌词与模板贴合度而定），**按 4–6 个场景一组派给多个画师并行**（subagent / teammate；
+相邻场景不要分给同一个画师，避免构图雷同）。
 所有工程操作都在 `<输出目录>/_project/` 里进行：
 
 - 必读：`<SKILL>/docs/scene-authoring.md` + `<输出目录>/_project/SCENE_BRIEF.md`（每句 concept / scene_type）+
@@ -179,15 +180,23 @@ custom 句通常占多数（视歌词与模板贴合度而定），**按 2–4 �
   截图 `_project/src/preview.html?scene=sXX&t=...&anim=0`，把截图和 concept 一起报给 Lead；
 - 全画完重新 `node build.mjs`（会自动同步交付目录的 index.html）。
 
-### Step 7 QA（全部通过才算交付）
+### Step 7 QA（迭代用 `--fast`，交付前跑完整版）
 
 ```bash
 cd "<输出目录>/_project"
-npm install --prefix tools          # 首次
+npm install --prefix tools          # 每个新项目首次（约 20s，只需装一次）
 node build.mjs                      # 打包并自动同步交付目录 index.html
+
+node tools/qa.mjs --fast            # 迭代期：约 20s，跳过整片实时播放
+node tools/qa.mjs                   # 交付前：完整 QA，约 时长 + 25s
+```
+
+`qa.mjs` 会依次跑下面这些单项（需要单看某一项时也可以单独跑）：
+
+```bash
 node tools/validate.mjs             # 场景全量：加载/update/path/性能
 node tools/check-final.mjs          # 单文件：0 外部请求、0 console error、逐场景 active+lyric、截图
-node tools/check-real-full.mjs      # 真音频完整播放：切点误差、结束/重播
+node tools/check-real-full.mjs      # 真音频完整播放：切点误差、结束/重播（时长 = 片段时长）
 node tools/test-real-audio.mjs      # 音轨引擎 24 项断言
 node tools/check-autoplay-fallback.mjs  # 自动播放被拦 → 海报+点击起播
 node tools/contact-sheet.mjs        # 生成接触表（_project/shots/）
@@ -204,8 +213,15 @@ node tools/contact-sheet.mjs        # 生成接触表（_project/shots/）
 
 **不通过就修再跑**；不要说“应该没问题”。修完重新 `node build.mjs` 再全量 QA。
 
+> 速度提示：`check-final` / `contact-sheet` 现在只在一次页面加载里用
+> `?export=1` + `__player.renderAt(t)` 逐场景定格，不再为每个场景重新导航，整片约 3~5s；
+> 改完场景先跑 `qa.mjs --fast`，确认全过再跑一次完整版，不要每轮都实时播完整片。
+
 用户要视频时（可选）：QA 全过后在 `<输出目录>/_project` 里跑 `node tools/export-video.mjs`
-（离线逐帧渲染 + ffmpeg 合成，不是录屏；默认 30fps/1600×900，`--fps 50 --scale 1.2` 出 1080p/50fps），
+（离线逐帧渲染 + ffmpeg 合成，不是录屏；默认 30fps/1600×900）。
+默认 4 个 Chrome 进程并行 + 快速截图，30s 片段约 2 分钟（旧版约 9 分钟；机器负载高时会慢一些）；
+`--fps 50 --scale 1.2` 出 1080p/50fps，`--workers 2` 可给低配机器降压，
+`--format jpeg --quality 92` 可再快一点（有轻微压缩）。
 产物默认到 **交付目录根** 的 `lyric-video.mp4`，检查时长和音画同步。
 
 ### Step 8 交付
@@ -250,6 +266,7 @@ node tools/contact-sheet.mjs        # 生成接触表（_project/shots/）
 | QA 依赖缺 puppeteer | 没装 node_modules | 在 `_project/` 下 `npm install --prefix tools` |
 | export-video 找不到 ffmpeg | PATH/FFMPEG_PATH 没有 ffmpeg | `pip install imageio-ffmpeg`，或设置 `FFMPEG_PATH`，或 `--ffmpeg <路径>` |
 | 导出视频音画不同步 | 用了录屏/剪映录浏览器 | 改用 `_project/tools/export-video.mjs`（逐帧渲染 + 音轨直接合成，不做实时录屏） |
+| 导出/QA 比预期慢 | 机器负载高、CPU 降频，或并行进程过多 | 关掉其它占 CPU 的程序；导出用 `--workers 2`、`--format jpeg --quality 92`；先 `--start/--end` 导一段验证 |
 
 ## 5. 硬约束（写进交付说明，不要对用户隐瞒）
 
@@ -264,6 +281,8 @@ node tools/contact-sheet.mjs        # 生成接触表（_project/shots/）
    用 `original-first` 的 70% 门禁；交付前确认 SCENE_BRIEF 里 custom 的 concept 已落实、custom 场景没有复刻模板构图。
 9. **MP4 导出是逐帧离线渲染**：`_project/tools/export-video.mjs` 用无头 Chrome 渲染 + ffmpeg 合成音轨，
    不依赖浏览器实时播放/录屏，所以画面与 HTML 一致、不会掉帧；需要 ffmpeg（否则只交付 HTML + 说明）。
+   默认 4 进程并行 + 快速截图（30s 片段约 2 分钟）；`--workers` / `--format jpeg` 可按机器调。
+   导出模式（`?export=1`）下页面主循环不重绘，只由 `renderAt(t)` 驱动，避免空转拖慢截图。
 10. **交付目录只放成品**：`index.html`、`README.md`、`lyric-video.mp4`；工程文件都在 `_project/`。
     `index.html` 可单独拷走离线播放；不要把 `_project/` 的内部路径写死进页面。
 
@@ -274,3 +293,19 @@ node tools/contact-sheet.mjs        # 生成接触表（_project/shots/）
   并在 scaffold 里按 `plan.style` 选择；先把现有风格跑稳再加。
 - 新增 motif：往 `template/motifs/` 加 `motif_mXX.js`（遵循 scene 规范：`SCENES.__SCENE_ID__`、
   `build(g, defs, H, W, HGT, scene)`、`scene.palette/scene.dur/scene.tag`），再登记 `motif_catalog.json`。
+
+## 7. 速度：想更快时按这个顺序做
+
+整条流水线里最耗时的是「画 custom 场景」「整片实时 QA」「导出 MP4」，其它步骤都只占几秒：
+
+1. **画场景并行**：每批 4–6 个独立场景派给多个画师；相邻句不要给同一个人。
+   改一句只跑 `node tools/check-scene.mjs sXX` + 单场景截图，不要每改一句就重建全片。
+2. **QA 分层**：迭代期跑 `node tools/qa.mjs --fast`（约 20s，跳过整片实时播放）；
+   交付前再跑一次 `node tools/qa.mjs`（完整版，约 片段时长 + 25s）。不要每轮都实时播完整片。
+3. **视频导出**：默认 4 进程并行 + 快速截图，30s 片段约 2 分钟；只做预览时
+   `--start/--end` 导一段、`--fps 24`、`--scale 0.75` 都会更快；`--format jpeg --quality 92`
+   可再省一点（有轻微压缩）。低配/明显降频的机器用 `--workers 1` 或 `2`，避免多进程互相拖慢。
+4. **音源**：用户给了本地文件 / B 站直链就直接 `--file` / `--url`，跳过自动搜索；
+   有 `duration_hint` 就传 `--expect-duration`，让候选一次选对版本，避免下载后才发现不对重来。
+5. **不要重复 scaffold**：改 plan 才重跑 scaffold（会重建整个工程）；只改场景/歌词就用
+   `_project/src/` + `node build.mjs` 增量更新。
