@@ -25,6 +25,8 @@
     idleTimer: 0,
     activeId: null,
     prevId: null,
+    fadeFromId: null,
+    static: false,
     litCount: -1,
     frames: 0,
     flash: 0
@@ -119,6 +121,7 @@
     els.lyricIndex = $('lyricIndex');
     els.lyricLine = $('lyricLine');
     els.lyricSub = $('lyricSub');
+    els.fadeLayer = $('fadeLayer');
     els.playBtn = $('playBtn');
     els.replayBtn = $('replayBtn');
     els.progressFill = $('progressFill');
@@ -176,6 +179,7 @@
     state.t = tt;
     state.activeId = null;
     state.prevId = null;
+    state.fadeFromId = null;
     els.frame.classList.add('instant');
     els.startOverlay.classList.add('hide');
     els.startOverlay.style.display = 'none';
@@ -311,19 +315,36 @@
     var activeInst = instances[active.id] || getScene(active);
     var local = clamp(t - active.start, 0, activeInst.dur);
 
+    var fade = Math.min(Math.max(0, Number(TL.fade || 0)), Math.max(0, activeInst.dur / 2));
+
     if (state.activeId !== active.id) {
+      state.fadeFromId = state.activeId;
       state.prevId = state.activeId;
       state.activeId = active.id;
       onSceneChange(active, activeInst);
-      if (state.started) state.flash = 0.62;
+      if (state.static) state.flash = 0;
+      else if (state.started) state.flash = fade > 0 ? 0.18 : 0.62;
     }
 
-    // DJ 版：每一句的起唱点直接硬切，不做长交叉淡化，只留一帧闪白
+    // 场景切换：默认 fade 秒交叉淡化（上一镜淡出、新镜淡入）；plan.fade 可调整/关闭
+    var prevInst = state.fadeFromId ? instances[state.fadeFromId] : null;
+    var canFade = fade > 0 && prevInst && prevInst !== activeInst && local < fade;
     ensureVisible(activeInst, true);
-    activeInst.layer.setAttribute('opacity', '1');
-    for (var lid in instances) {
-      if (!Object.prototype.hasOwnProperty.call(instances, lid)) continue;
-      if (lid !== active.id) ensureVisible(instances[lid], false);
+    if (canFade) {
+      var fp = clamp(local / fade, 0, 1);
+      activeInst.layer.setAttribute('opacity', fp.toFixed(3));
+      ensureVisible(prevInst, true);
+      prevInst.layer.setAttribute('opacity', (1 - fp).toFixed(3));
+      for (var lid in instances) {
+        if (!Object.prototype.hasOwnProperty.call(instances, lid)) continue;
+        if (lid !== active.id && lid !== prevInst.id) ensureVisible(instances[lid], false);
+      }
+    } else {
+      activeInst.layer.setAttribute('opacity', '1');
+      for (var lid2 in instances) {
+        if (!Object.prototype.hasOwnProperty.call(instances, lid2)) continue;
+        if (lid2 !== active.id) ensureVisible(instances[lid2], false);
+      }
     }
 
     var levels = readLevels(t, dt);
@@ -373,6 +394,20 @@
       }
     }
     if (els.frame) els.frame.style.setProperty('--pulse', pulseState.v.toFixed(3));
+
+    // 整片淡入/淡出：黑场覆盖场景+歌词（开始/结束遮罩在它上方，不受影响）
+    if (els.fadeLayer) {
+      var black = 0;
+      if (state.started) {
+        var fi = Math.max(0, Number(TL.fadeIn != null ? TL.fadeIn : 0));
+        var fo = Math.max(0, Number(TL.fadeOut != null ? TL.fadeOut : 0));
+        if (fi > 0 && t < fi) black = Math.max(black, 1 - t / fi);
+        if (fo > 0 && t > TL.duration - fo) {
+          black = Math.max(black, (t - (TL.duration - fo)) / fo);
+        }
+      }
+      els.fadeLayer.style.opacity = clamp(black, 0, 1).toFixed(3);
+    }
 
     updateLyricHighlight(local, activeInst);
     updateProgress(t);
@@ -531,6 +566,7 @@
       state.playing = true;
       state.prevId = null;
       state.activeId = null;
+      state.fadeFromId = null;
       state.litCount = -1;
       state.flash = 0;
       els.startOverlay.classList.add('hide');
@@ -603,6 +639,7 @@
     state.playing = true;
     state.activeId = null;
     state.prevId = null;
+    state.fadeFromId = null;
     state.litCount = -1;
     state.flash = 0;
     els.endOverlay.classList.remove('show');

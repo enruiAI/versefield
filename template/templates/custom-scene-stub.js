@@ -4,7 +4,7 @@
  * 文件头部已写入本句的歌词 / 画面类型 / 画面概念（concept）。
  *
  * 画师请：
- *   1. 读项目根目录 SCENE_BRIEF.md 与技能目录 docs/scene-authoring.md；
+ *   1. 读 _project/SCENE_BRIEF.md 与技能目录 docs/scene-authoring.md；
  *   2. 围绕 concept 设计这句专属的画面，**不要复刻 m01–m15 任何模板的构图**；
  *   3. 相邻场景的画面类型/机位/主体必须不同。
  *

@@ -149,9 +149,15 @@ python <SKILL>/scripts/align_and_cut.py \
 python <SKILL>/scripts/scaffold.py --plan plan.json --out "<输出目录>" --build
 ```
 
-scaffold 会：复制页面工程 + motif 场景 → 生成 `src/timeline.js`（场景起止/歌词/调色板/卡点表）→
-内联音频 → 生成 index/preview/test-runner → 写 `project.json`、`README.md`，有 custom 时写 `SCENE_BRIEF.md`。
-`--build` 会直接 `node build.mjs` 产出单文件 `index.html`。
+scaffold 会生成 **交付目录** 和 **工程目录** 两层：
+
+- 交付目录（用户直接打开）：`index.html`（最终单页）、`README.md`、以及之后的 `lyric-video.mp4`；
+- `<输出目录>/_project/`：`src/`、`tools/`、`assets/`、`shots/`、`meta/`、`project.json`、
+  `SCENE_BRIEF.md`、`build.mjs`、`preview/test-runner.html` 等工程文件，**删掉不影响 index.html 播放**。
+
+`--build` 会执行 `node build.mjs` 产出单文件，并自动把 `index.html` 同步到交付目录。
+画面默认带 **0.28s 场景交叉淡化 + 0.6s 片头 / 0.8s 片尾黑场淡入淡出**（plan 的
+`fade` / `fade_in` / `fade_out` 可调，设 0 关闭）。
 每首歌的整套调色板会按「歌名 + 歌手」自动做 `palette_shift` 色相偏移（同一模板在不同歌里颜色不同）；
 要关闭或手动指定时见 `docs/plan-schema.md`。
 
@@ -162,27 +168,29 @@ scaffold 会：复制页面工程 + motif 场景 → 生成 `src/timeline.js`（
 
 ### Step 6 画 custom 场景（默认方案下占多数）
 
-custom 句通常占多数（视歌词与模板贴合度而定），**按 2–4 个场景一组派给多个画师并行**（subagent / teammate）：
+custom 句通常占多数（视歌词与模板贴合度而定），**按 2–4 个场景一组派给多个画师并行**（subagent / teammate）。
+所有工程操作都在 `<输出目录>/_project/` 里进行：
 
-- 必读：`<SKILL>/docs/scene-authoring.md` + 项目根目录 `SCENE_BRIEF.md`（每句的 concept / scene_type）+
-  项目 `src/art.js` + `src/scenes/` 里任意两个 motif 场景（只为理解 API，不要照抄构图）；
-- 每个画师先用自己的话复述分到的 `concept`，再动手；只改分到的 `src/scenes/sXX.js`，页面其它文件不许动；
+- 必读：`<SKILL>/docs/scene-authoring.md` + `<输出目录>/_project/SCENE_BRIEF.md`（每句 concept / scene_type）+
+  `_project/src/art.js` + `_project/src/scenes/` 里任意两个 motif 场景（只为理解 API，不要照抄构图）；
+- 每个画师先用自己的话复述分到的 `concept`，再动手；只改分到的 `_project/src/scenes/sXX.js`，页面其它文件不许动；
 - **不要复刻 m01–m15 的构图**；相邻场景的画面类型/机位/主体要有明显差别；配色用本片 `scene.palette`；
-- 自检：`node tools/check-scene.mjs sXX`（退出码 0、errors=[]、badPaths=[]、nodes<800）+
-  截图 `src/preview.html?scene=sXX&t=...&anim=0`，把截图和 concept 一起报给 Lead；
-- 全画完重新 `node build.mjs`。
+- 自检（在 `_project/` 下）：`node tools/check-scene.mjs sXX`（退出码 0、errors=[]、badPaths=[]、nodes<800）+
+  截图 `_project/src/preview.html?scene=sXX&t=...&anim=0`，把截图和 concept 一起报给 Lead；
+- 全画完重新 `node build.mjs`（会自动同步交付目录的 index.html）。
 
 ### Step 7 QA（全部通过才算交付）
 
 ```bash
+cd "<输出目录>/_project"
 npm install --prefix tools          # 首次
-node build.mjs
+node build.mjs                      # 打包并自动同步交付目录 index.html
 node tools/validate.mjs             # 场景全量：加载/update/path/性能
 node tools/check-final.mjs          # 单文件：0 外部请求、0 console error、逐场景 active+lyric、截图
 node tools/check-real-full.mjs      # 真音频完整播放：切点误差、结束/重播
 node tools/test-real-audio.mjs      # 音轨引擎 24 项断言
 node tools/check-autoplay-fallback.mjs  # 自动播放被拦 → 海报+点击起播
-node tools/contact-sheet.mjs        # 生成接触表
+node tools/contact-sheet.mjs        # 生成接触表（_project/shots/）
 ```
 
 通过标准：
@@ -196,31 +204,37 @@ node tools/contact-sheet.mjs        # 生成接触表
 
 **不通过就修再跑**；不要说“应该没问题”。修完重新 `node build.mjs` 再全量 QA。
 
-用户要视频时（可选）：QA 全过后在项目根目录跑 `node tools/export-video.mjs`（离线逐帧渲染 + ffmpeg 合成，
-不是录屏；默认 30fps/1600×900，`--fps 50 --scale 1.2` 出 1080p/50fps），检查 `shots/*.mp4` 的时长和音画同步。
+用户要视频时（可选）：QA 全过后在 `<输出目录>/_project` 里跑 `node tools/export-video.mjs`
+（离线逐帧渲染 + ffmpeg 合成，不是录屏；默认 30fps/1600×900，`--fps 50 --scale 1.2` 出 1080p/50fps），
+产物默认到 **交付目录根** 的 `lyric-video.mp4`，检查时长和音画同步。
 
 ### Step 8 交付
 
-用 `present` 给用户：
-1. `index.html`（最终单文件，双击即播）；
-2. `assets/song_clip.mp3`（试听/核对用）；
-3. `shots/contact_sheet.png`（全片接触表）；
-4. `README.md`（使用说明 + 时间轴 + 来源 + 版权提示）；
-5. 如果用户要视频：`shots/lyric-video.mp4`（`node tools/export-video.mjs` 产出；需要 ffmpeg + puppeteer-core）。
-并说明：浏览器需要点一次「点击开始」才有声音；音频来源与版权提示；如需要换片段/换风格可重跑。
+用 `present` 给用户（主目录只放成品，工程文件在 `_project/`）：
+1. `<输出目录>/index.html`（最终单文件，双击即播）；
+2. `<输出目录>/README.md`（使用说明 + 时间轴 + 来源 + 版权提示）；
+3. `<输出目录>/lyric-video.mp4`（如果用户要视频；`node tools/export-video.mjs` 产出）；
+4. `_project/shots/contact_sheet.png`（全片接触表，内部 QA 产物）；
+5. `_project/assets/song_clip.mp3`（试听/核对用，内部）。
+并说明：主目录的 `index.html` 可单独拷走播放；`_project/` 只用于二次生成/QA，删掉不影响播放；
+浏览器需要点一次「点击开始」才有声音；音频来源与版权提示；如需要换片段/换风格可重跑。
 
 ## 3. 目录与产物
 
 ```
-<输出目录>/
-  index.html               最终单文件（离线可播）
-  src/                     开发工程（timeline/scenes/audio-data/…）
-  tools/                   QA 脚本 + export-video.mjs（视频导出）
-  assets/song_clip.mp3     截取后的音轨
-  project.json             项目配置（场景/时间轴/来源/custom 标记）
-  README.md / SCENE_BRIEF.md
-  shots/                   QA 截图 + 接触表 + lyric-video.mp4（可选）
-  meta/                    plan.json / lyrics.json / cut.json / pulse_table.txt
+<输出目录>/                  ← 交付目录：只放成品
+  index.html               最终单文件（离线可播，可直接拷走）
+  README.md                使用说明 / 时间轴 / 来源 / 版权
+  lyric-video.mp4          可选：导出的视频
+  _project/                ← 工程目录（删掉不影响 index.html 播放）
+    src/                   页面工程（timeline/scenes/audio-data/preview…）
+    tools/                 QA 脚本 + export-video.mjs（视频导出）
+    assets/song_clip.mp3   截取后的音轨
+    project.json           项目配置（场景/时间轴/来源/custom 标记）
+    SCENE_BRIEF.md         自定义场景任务说明（如有）
+    shots/                 QA 截图 + 接触表
+    meta/                  plan.json / lyrics.json / cut.json / pulse_table.txt
+    build.mjs              打包脚本（自动同步上级 index.html）
 ```
 
 ## 4. 常见故障与处理
@@ -230,12 +244,12 @@ node tools/contact-sheet.mjs        # 生成接触表
 | fetch_lyrics 找不到首尾句 | 歌词文本差异/翻唱版本不同 | 打印候选；让用户确认歌手或直接给歌词文本/时间 |
 | align_and_cut 命中率低 | 音源不是 LRC 对应的版本（同名单曲≠同一录音） | 换音源（平台的同名 DJ/翻唱版本很多）；用 `--file` 让用户提供；绝不硬交付 |
 | fetch_audio 下不到 | 版权/VIP/接口变化 | 用 B 站公开视频链接；或让用户提供 mp3 |
-| 页面场景报错/空白 | scene 文件 build/update 抛错 | `node tools/check-scene.mjs sXX`，修完重建 |
-| 页面声音与歌词不同步 | 时间轴没按 cut.json 的 rel 时间 | 重新 scaffold；检查 `project.json` 的 `start` 与 cut.json `rel` 是否一致 |
-| custom 场景还是 TODO | 画师没交付 | 重新派单；交付前 grep `TODO — CUSTOM SCENE` |
-| QA 依赖缺 puppeteer | 没装 node_modules | `npm install --prefix tools` |
+| 页面场景报错/空白 | scene 文件 build/update 抛错 | 在 `_project/` 下 `node tools/check-scene.mjs sXX`，修完重建 |
+| 页面声音与歌词不同步 | 时间轴没按 cut.json 的 rel 时间 | 重新 scaffold；检查 `_project/project.json` 的 `start` 与 cut.json `rel` 是否一致 |
+| custom 场景还是 TODO | 画师没交付 | 重新派单；交付前 grep `_project/src/scenes/` 里的 `TODO — CUSTOM SCENE` |
+| QA 依赖缺 puppeteer | 没装 node_modules | 在 `_project/` 下 `npm install --prefix tools` |
 | export-video 找不到 ffmpeg | PATH/FFMPEG_PATH 没有 ffmpeg | `pip install imageio-ffmpeg`，或设置 `FFMPEG_PATH`，或 `--ffmpeg <路径>` |
-| 导出视频音画不同步 | 用了录屏/剪映录浏览器 | 改用 `tools/export-video.mjs`（逐帧渲染 + 音轨直接合成，不做实时录屏） |
+| 导出视频音画不同步 | 用了录屏/剪映录浏览器 | 改用 `_project/tools/export-video.mjs`（逐帧渲染 + 音轨直接合成，不做实时录屏） |
 
 ## 5. 硬约束（写进交付说明，不要对用户隐瞒）
 
@@ -243,13 +257,15 @@ node tools/contact-sheet.mjs        # 生成接触表
 2. **自动播放**：浏览器必须用户点击一次才能出声，无法绕过。
 3. **音源版本校验是强制的**：`meta/cut.json` 的 alignment 不通过就不交付，这是本技能最重要的一条。
 4. 单文件体积：53s 音频约 1.4MB；长篇/多段会更大，必要时降低码率或减少片段长度。
-5. 生成项目的 `tools/` 需要 `npm install` 才能跑浏览器 QA；构建（build.mjs）不需要。
+5. 生成项目的 `_project/tools/` 需要 `npm install` 才能跑浏览器 QA；构建（`_project/build.mjs`）不需要。
 6. **不要在生成的页面里加固定宣传文案 / 模型名 / 水印**（用户明确不需要）；页面只保留歌名、歌词、播放控件。
-7. 交付前确认 `grep -r "TODO — CUSTOM SCENE" src/scenes/` 为空（除非用户同意先用占位）。
+7. 交付前确认 `grep -r "TODO — CUSTOM SCENE" _project/src/scenes/` 为空（除非用户同意先用占位）。
 8. **模板只在真正贴合时使用**：不要整片套模板省事；如用户明确要求「尽量原创 / 全部独立场景」，
    用 `original-first` 的 70% 门禁；交付前确认 SCENE_BRIEF 里 custom 的 concept 已落实、custom 场景没有复刻模板构图。
-9. **MP4 导出是逐帧离线渲染**：`node tools/export-video.mjs` 用无头 Chrome 渲染 + ffmpeg 合成音轨，
+9. **MP4 导出是逐帧离线渲染**：`_project/tools/export-video.mjs` 用无头 Chrome 渲染 + ffmpeg 合成音轨，
    不依赖浏览器实时播放/录屏，所以画面与 HTML 一致、不会掉帧；需要 ffmpeg（否则只交付 HTML + 说明）。
+10. **交付目录只放成品**：`index.html`、`README.md`、`lyric-video.mp4`；工程文件都在 `_project/`。
+    `index.html` 可单独拷走离线播放；不要把 `_project/` 的内部路径写死进页面。
 
 ## 6. 模板库与扩展
 

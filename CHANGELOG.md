@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.2.0 — 2026-10-20
+
+### 变更（生成结果更好找）
+
+- 生成的**交付目录只放成品**：`index.html`、`README.md`、可选 `lyric-video.mp4`；
+  `src/`、`tools/`、`assets/`、`shots/`、`meta/`、`project.json`、`SCENE_BRIEF.md`、`build.mjs`
+  等工程文件统一收进 `<输出目录>/_project/`。
+- `build.mjs` 打包后会**自动把单文件 `index.html` 同步到交付目录**；交付目录的 `index.html` 可单独拷走离线播放。
+- QA、视频导出、场景绘制等命令统一在 `_project/` 下执行；`_project/` 删掉不影响网页播放。
+- 文档（SKILL.md / README / plan-schema / 生成项目 README / scene-authoring）同步新目录结构。
+
+### 新增（淡入淡出）
+
+- 场景切换默认做 **0.28s 交叉淡化**（`#fadeLayer` + 场景层 opacity 按时间确定性渲染）；
+- 片头 **0.6s**、片尾 **0.8s** 黑场淡入淡出；
+- plan 新增 `fade` / `fade_in` / `fade_out`（默认 0.28 / 0.6 / 0.8，设 `0` 关闭）；
+- 导出 MP4 时画面沿用同一套淡入淡出，整片导出时音轨也做对应的 afade。
+
+### 其它
+
+- `export-video.mjs` 默认输出到**交付目录根**的 `lyric-video.mp4`（`--out` 相对交付目录）。
+- 旧版生成的项目保持原结构；重新生成即可使用新布局与淡入淡出。版本号升到 v0.2.0。
+
 ## v0.1.5 — 2026-10-20
 
 ### 新增（社区规范）

@@ -6,8 +6,9 @@ scaffold.py — 用 plan.json 生成一个完整的「歌词视频」项目
 用法：
   python scaffold.py --plan plan.json [--out 目录] [--pulse-hex pulse.txt] [--build] [--force]
 
-plan.json 见 docs/dev-plan-schema.md。生成的项目结构：
-  index.html / src/ / tools/ / assets/song_clip.mp3 / shots/ / project.json / README.md
+plan.json 见 docs/plan-schema.md。生成结构：
+  交付目录（只放成品）：index.html / README.md / 可选 lyric-video.mp4
+  工程目录：<out>/_project/（src/ tools/ assets/ shots/ meta/ project.json SCENE_BRIEF.md build.mjs…）
 """
 import argparse
 import base64
@@ -321,33 +322,37 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
     total = norm[-1]["scene_end"]
 
     # ---------- 目录 ----------
+    # 交付目录只放最终结果（index.html / README.md / 可选视频），
+    # 工程文件统一收进 _project/，用户一眼就能找到成品。
     out_dir = Path(out_dir).resolve()
     if out_dir.exists() and any(out_dir.iterdir()):
         if not force:
             die(f"输出目录已存在且非空: {out_dir}（加 --force 覆盖）")
         shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    work_dir = out_dir / "_project"
     for sub in ("src/scenes", "assets", "meta", "tools", "tests", "shots"):
-        (out_dir / sub).mkdir(parents=True, exist_ok=True)
+        (work_dir / sub).mkdir(parents=True, exist_ok=True)
 
     # ---------- 基础文件 ----------
     for f in ("helpers.js", "art.js", "style.css", "audio.js", "core.js"):
-        shutil.copy2(TEMPLATE / "src" / f, out_dir / "src" / f)
+        shutil.copy2(TEMPLATE / "src" / f, work_dir / "src" / f)
     # audio.js 的兜底时长
-    audio_js = out_dir / "src" / "audio.js"
+    audio_js = work_dir / "src" / "audio.js"
     t = audio_js.read_text(encoding="utf-8")
     t = re.sub(r"var FALLBACK_DURATION = [\d.]+;", "var FALLBACK_DURATION = %.3f;" % total, t)
     audio_js.write_text(t, encoding="utf-8")
 
-    shutil.copy2(TEMPLATE / "build.mjs", out_dir / "build.mjs")
-    shutil.copy2(TEMPLATE / "tests" / "audio-real-check.html", out_dir / "tests" / "audio-real-check.html")
+    shutil.copy2(TEMPLATE / "build.mjs", work_dir / "build.mjs")
+    shutil.copy2(TEMPLATE / "tests" / "audio-real-check.html", work_dir / "tests" / "audio-real-check.html")
     # tools
     for f in (TEMPLATE / "tools").iterdir():
         if f.name == "node_modules":
             continue
         if f.is_dir():
-            shutil.copytree(f, out_dir / "tools" / f.name, dirs_exist_ok=True)
+            shutil.copytree(f, work_dir / "tools" / f.name, dirs_exist_ok=True)
         else:
-            shutil.copy2(f, out_dir / "tools" / f.name)
+            shutil.copy2(f, work_dir / "tools" / f.name)
 
     # ---------- 场景文件 ----------
     scene_files = []
@@ -360,7 +365,7 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
                 " * 歌词：%s\n"
                 " * 画面类型：%s\n"
                 " * 画面概念：%s\n"
-                " * 原创要求：不要复刻 m01–m15 任何模板的构图；详见项目根目录 SCENE_BRIEF.md。\n"
+                " * 原创要求：不要复刻 m01–m15 任何模板的构图；详见 _project/SCENE_BRIEF.md。\n"
                 " */\n"
             ) % (
                 s["id"], s["tag"],
@@ -373,29 +378,29 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         else:
             src = (TEMPLATE / "motifs" / motifs[s["motif"]]["file"]).read_text(encoding="utf-8")
         src = src.replace("__SCENE_ID__", s["id"])
-        p = out_dir / "src" / "scenes" / (s["id"] + ".js")
+        p = work_dir / "src" / "scenes" / (s["id"] + ".js")
         p.write_text(src, encoding="utf-8")
         scene_files.append("scenes/%s.js" % s["id"])
     manifest = "".join('  "%s",\n' % s["id"] for s in norm)
-    (out_dir / "src" / "scenes" / "manifest.js").write_text(
+    (work_dir / "src" / "scenes" / "manifest.js").write_text(
         "window.SCENE_MANIFEST = [\n%s];\n" % manifest, encoding="utf-8")
 
     # ---------- 音频 ----------
-    clip = out_dir / "assets" / "song_clip.mp3"
+    clip = work_dir / "assets" / "song_clip.mp3"
     shutil.copy2(audio_src, clip)
     b64 = base64.b64encode(clip.read_bytes()).decode("ascii")
-    (out_dir / "src" / "audio-data.js").write_text(
+    (work_dir / "src" / "audio-data.js").write_text(
         "/* =========================================================================\n"
         " * audio-data.js — 内联音轨（base64 data URL）\n"
         " * 音源：%s\n"
-        " * 成品：assets/song_clip.mp3（%.2fs）\n"
+        " * 成品：_project/assets/song_clip.mp3（%.2fs）\n"
         " * 本文件由 scaffold.py 生成，请勿手改。\n"
         " * ========================================================================= */\n"
         "window.__SONG_AUDIO_DATA_URL = 'data:audio/mpeg;base64,%s';\n"
         % (audio_info.get("source") or song, total, b64),
         encoding="utf-8")
     # 供 tests/audio-real-check.html 读取的期望时长（避免测试脚本写死）
-    (out_dir / "src" / "test-config.js").write_text(
+    (work_dir / "src" / "test-config.js").write_text(
         "window.__EXPECTED_DURATION__ = %.3f;\nwindow.__PROJECT_META__ = %s;\n" % (
             total, json.dumps({"song": song, "artist": artist, "duration": round(total, 3)},
                               ensure_ascii=False)),
@@ -417,7 +422,7 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         pulse_hex, pulse_rate = compute_pulse_hex(audio_src, ffmpeg_exe())
     if not re.fullmatch(r"[0-9a-f]+", pulse_hex or ""):
         die("pulse hex 非法")
-    (out_dir / "meta" / "pulse_table.txt").write_text(pulse_hex, encoding="utf-8")
+    (work_dir / "meta" / "pulse_table.txt").write_text(pulse_hex, encoding="utf-8")
 
     # ---------- timeline.js ----------
     pal_rows = []
@@ -437,6 +442,9 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
     for s in norm:
         pal_lines.append("    %s: %s," % (s["id"], json.dumps(s["palette"], ensure_ascii=False)))
     bpm = float(plan.get("bpm") or 130)
+    fade = max(0.0, float(plan.get("fade", 0.28)))
+    fade_in = max(0.0, float(plan.get("fade_in", 0.6)))
+    fade_out = max(0.0, float(plan.get("fade_out", 0.8)))
     timeline = """/* =========================================================================
  * timeline.js — 全局时间轴（由 versefield skill / scaffold.py 生成）
  *
@@ -474,6 +482,9 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
     beat: 60 / %(bpm)s,
     bar: 60 / %(bpm)s * 4,
     duration: %(duration).3f,
+    fade: %(fade)s,
+    fadeIn: %(fade_in)s,
+    fadeOut: %(fade_out)s,
     lineLabel: %(line_label)s,
     pulseRate: %(pulse_rate)s,
     pulseHex: '%(pulse_hex)s',
@@ -507,11 +518,14 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         "pal": "\n".join(pal_lines),
         "rows": ",\n".join(data_rows),
         "bpm": ("%g" % bpm),
+        "fade": ("%g" % fade),
+        "fade_in": ("%g" % fade_in),
+        "fade_out": ("%g" % fade_out),
         "pulse_rate": pulse_rate,
         "pulse_hex": pulse_hex,
         "line_label": json.dumps(plan.get("line_label") or "", ensure_ascii=False),
     }
-    (out_dir / "src" / "timeline.js").write_text(timeline, encoding="utf-8")
+    (work_dir / "src" / "timeline.js").write_text(timeline, encoding="utf-8")
 
     # ---------- index / preview / test-runner ----------
     scripts = "\n".join('<script src="%s"></script>' % f for f in scene_files)
@@ -532,16 +546,12 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         "END_MSG": plan.get("end_msg") or "献给每一个 认真爱过的人",
         "SCENE_SCRIPTS": scripts,
     })
-    (out_dir / "index.html").write_text(index_html, encoding="utf-8")
-    # 同步写一份开发版 src/index.html
-    (out_dir / "src" / "index.html").write_text(index_html, encoding="utf-8")
-
-    (out_dir / "preview.html").write_text(render("preview.tpl", {
+    # 开发版页面只写进 src/：build.mjs 会生成 _project/index.html 并同步到交付目录
+    (work_dir / "src" / "index.html").write_text(index_html, encoding="utf-8")
+    (work_dir / "src" / "preview.html").write_text(render("preview.tpl", {
         "SONG": song, "SCENE_SCRIPTS": scripts}), encoding="utf-8")
-    (out_dir / "src" / "preview.html").write_text((out_dir / "preview.html").read_text(encoding="utf-8"), encoding="utf-8")
-    (out_dir / "test-runner.html").write_text(render("test-runner.tpl", {
+    (work_dir / "src" / "test-runner.html").write_text(render("test-runner.tpl", {
         "SONG": song, "SCENE_SCRIPTS": scripts}), encoding="utf-8")
-    (out_dir / "src" / "test-runner.html").write_text((out_dir / "test-runner.html").read_text(encoding="utf-8"), encoding="utf-8")
 
     # ---------- project.json ----------
     project = {
@@ -551,6 +561,9 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         "style": style,
         "duration": round(total, 3),
         "bpm": bpm,
+        "fade": round(fade, 3),
+        "fade_in": round(fade_in, 3),
+        "fade_out": round(fade_out, 3),
         "scene_policy": policy,
         "custom_ratio": round(custom_count / float(len(norm)), 3),
         "palette_shift": palette_shift,
@@ -574,8 +587,8 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         "cut": plan.get("cut") or {},
         "generated_at": datetime.now(CST).isoformat(timespec="seconds"),
     }
-    (out_dir / "project.json").write_text(json.dumps(project, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out_dir / "meta" / "plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
+    (work_dir / "project.json").write_text(json.dumps(project, ensure_ascii=False, indent=2), encoding="utf-8")
+    (work_dir / "meta" / "plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # ---------- README ----------
     rows = []
@@ -661,7 +674,7 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
                              % (s["id"], s["id"], mid, s["id"]))
         brief.append("")
         brief.append("完成后重新 `node build.mjs` 并跑 QA；交付前确认所有 custom 场景没有 TODO 占位。")
-        (out_dir / "SCENE_BRIEF.md").write_text("\n".join(brief), encoding="utf-8")
+        (work_dir / "SCENE_BRIEF.md").write_text("\n".join(brief), encoding="utf-8")
 
     # ---------- 构建 ----------
     build_out = None
@@ -669,16 +682,25 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         node = shutil.which("node")
         if not node:
             die("需要 node 来构建，但 PATH 里找不到 node")
-        r = subprocess.run([node, "build.mjs"], cwd=str(out_dir), capture_output=True,
+        r = subprocess.run([node, "build.mjs"], cwd=str(work_dir), capture_output=True,
                            text=True, encoding="utf-8", errors="replace")
         build_out = {"code": r.returncode, "stdout": r.stdout.strip(), "stderr": r.stderr.strip()[-800:]}
+        # build.mjs 会把单文件 index.html 同步到交付目录；这里再兜底复制一次
+        built = work_dir / "index.html"
+        if built.exists():
+            shutil.copy2(built, out_dir / "index.html")
 
     return {
         "ok": True,
         "out": str(out_dir),
+        "work_dir": str(work_dir),
+        "index": str(out_dir / "index.html"),
         "song": song,
         "scene_count": scene_count,
         "duration": round(total, 3),
+        "fade": round(fade, 3),
+        "fade_in": round(fade_in, 3),
+        "fade_out": round(fade_out, 3),
         "scene_policy": policy,
         "custom_count": custom_count,
         "custom_ratio": round(custom_count / float(scene_count), 3),
@@ -691,7 +713,7 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         "audio_file": str(clip),
         "build": build_out,
         "next": [
-            "cd \"%s\"" % out_dir,
+            "cd \"%s\"" % work_dir,
             "npm install --prefix tools",
             "node build.mjs",
             "node tools/validate.mjs && node tools/check-final.mjs",

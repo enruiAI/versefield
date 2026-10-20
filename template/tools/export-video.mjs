@@ -1,15 +1,16 @@
 /**
  * 导出 MP4：把单页歌词视频逐帧渲染成带音轨的视频。
  *
- * 用法（在生成项目根目录执行）：
+ * 用法（在生成项目的 _project/ 目录执行）：
  *   node tools/export-video.mjs
- *   node tools/export-video.mjs --fps 50 --scale 1.2 --out shots/mv-1080p.mp4
- *   node tools/export-video.mjs --start 6 --end 18 --out shots/chorus.mp4
+ *   node tools/export-video.mjs --fps 50 --scale 1.2 --out mv-1080p.mp4
+ *   node tools/export-video.mjs --start 6 --end 18 --out chorus.mp4
+ *   输出默认在交付目录根（_project 的上一级）：lyric-video.mp4
  *
  * 原理（离线逐帧，不是录屏）：
- *   1. 无头 Chrome 打开 index.html?export=1：关闭主循环推进、关闭 CSS 动画（.instant）；
- *   2. 逐帧调用 window.__player.renderAt(t) 并截图 PNG 序列；
- *   3. ffmpeg 把 PNG 序列 + assets/song_clip.mp3 合成为 H.264/AAC MP4。
+ *   1. 无头 Chrome 打开 _project/index.html?export=1：关闭主循环推进、关闭 CSS 动画；
+ *   2. 逐帧调用 window.__player.renderAt(t) 并截图 PNG 序列（画面含淡入淡出）；
+ *   3. ffmpeg 把 PNG 序列 + _project/assets/song_clip.mp3 合成为 H.264/AAC MP4。
  *   音轨不经过浏览器，画面按时间轴逐帧确定性渲染，不会掉帧/音画漂移。
  *
  * 依赖：puppeteer-core（npm install --prefix tools）+ ffmpeg
@@ -18,8 +19,8 @@
  * 可选参数：
  *   --fps 30          帧率（默认 30；50 可对齐 50fps 卡点表）
  *   --scale 1         输出缩放（1600×900 × scale；1.2 = 1920×1080）
- *   --out <path>      输出文件（默认 shots/lyric-video.mp4，相对项目根目录）
- *   --audio <path>    音轨（默认 assets/song_clip.mp3）
+ *   --out <path>      输出文件（相对 _project 的上一级交付目录，默认 lyric-video.mp4）
+ *   --audio <path>    音轨（默认 _project/assets/song_clip.mp3）
  *   --start / --end   只导出一段（秒；默认整片）
  *   --crf 20          H.264 质量（越小越清晰、文件越大）
  *   --preset medium   x264 preset（fast / medium / slow）
@@ -105,12 +106,15 @@ async function main() {
   const start = Math.max(0, num('start', 0));
   const end = Math.min(duration, num('end', duration));
   if (end <= start + 1 / fps) throw new Error(`导出区间太短：start=${start} end=${end}`);
-  const out = resolve(ROOT, String(opt('out', 'shots/lyric-video.mp4')));
+  const DELIVERY = resolve(ROOT, '..');
+  const out = resolve(DELIVERY, String(opt('out', 'lyric-video.mp4')));
   const audio = resolve(ROOT, String(opt('audio', 'assets/song_clip.mp3')));
   const crf = String(Math.round(num('crf', 20)));
   const preset = String(opt('preset', 'medium'));
   const showUI = flag('show-ui');
   const keepFrames = flag('keep-frames');
+  const fadeIn = Math.max(0, Number(PROJECT.fade_in != null ? PROJECT.fade_in : 0.6) || 0);
+  const fadeOut = Math.max(0, Number(PROJECT.fade_out != null ? PROJECT.fade_out : 0.8) || 0);
 
   if (!existsSync(audio)) throw new Error('找不到音轨：' + audio);
   const ffmpeg = findFfmpeg();
@@ -149,11 +153,18 @@ async function main() {
     await browser.close().catch(() => {});
   }
 
+  const audioFilters = [];
+  if (start <= 0.001 && fadeIn > 0) audioFilters.push(`afade=t=in:st=0:d=${fadeIn}`);
+  if (end >= duration - 0.001 && fadeOut > 0) {
+    audioFilters.push(`afade=t=out:st=${Math.max(0, duration - fadeOut).toFixed(3)}:d=${fadeOut}`);
+  }
+
   await runFfmpeg(ffmpeg, [
     '-y', '-hide_banner', '-loglevel', 'error',
     '-framerate', String(fps), '-i', join(framesDir, '%06d.png'),
     '-ss', String(start), '-i', audio,
     '-t', String(end - start),
+    ...(audioFilters.length ? ['-af', audioFilters.join(',')] : []),
     '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
     '-c:v', 'libx264', '-preset', preset, '-crf', crf, '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k',

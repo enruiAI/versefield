@@ -39,6 +39,10 @@ VerseField（词场）是一个 **DSH Skill + 命令行工具**：给一首歌�
 - **真实音轨 + 卡点**：从真实音频离线分析 50fps 起音包络，场景里的鼓点、光环、心跳与音乐逐帧对齐。
 - **歌词/声音强制校验**：解决“同名单曲≠同一录音”的坑——起音校验 + 时长/版本守卫，不通过不交付。
 - **单文件交付**：音频 base64 内联，最终 `index.html` 可离线播放，0 外部请求。
+- **淡入淡出**：场景之间默认 0.28s 交叉淡化，片头 / 片尾带黑场淡入淡出（`plan.fade` / `fade_in` /
+  `fade_out` 可调或关闭）；导出的 MP4 会一起带上画面与音轨的淡入淡出。
+- **成品一眼可见**：生成的交付目录只放 `index.html`、`README.md`、`lyric-video.mp4`；
+  `src/`、`tools/`、`assets/` 等工程文件统一收进 `_project/`，删掉也不影响网页播放。
 - **可导出 MP4**：生成项目自带 `tools/export-video.mjs`，无头 Chrome 按时间轴逐帧渲染 + ffmpeg 合成音轨
   （不是录屏），默认 30fps/1600×900，可出 50fps/1920×1080，支持只导一段。
 - **可扩展**：场景模板、视觉风格、QA 工具都是独立文件，方便继续加。
@@ -71,7 +75,7 @@ cd versefield && ./install.sh
 ```
 
 > **从压缩包安装**：从 [Releases](https://github.com/enruiAI/versefield/releases) 下载
-> `versefield-v0.1.5.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
+> `versefield-v0.2.0.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
 > 文件夹整个放进 `~/.dsh/skills/` 即可。如果解压出来是 `versefield-main/`，先改名为 `versefield`。
 >
 > **确认安装**：`~/.dsh/skills/versefield/SKILL.md` 存在即可，DSH 会自动刷新技能列表。
@@ -158,15 +162,19 @@ npm install --prefix my-lyric-video/tools   # 首次
 
 ## QA / 质量门禁
 
-每个生成项目自带一套 QA（`tools/`，场景数/时长由 `project.json` 自适应）：
+每个生成项目自带一套 QA（`_project/tools/`，场景数/时长由 `_project/project.json` 自适应）。
+在生成的 `_project/` 目录里执行：
 
 ```bash
+cd _project
+npm install --prefix tools       # 首次
+node build.mjs                   # 打包，并自动同步 ../index.html
 node tools/validate.mjs          # 全部场景：加载 / update / 非法 path / 节点数 / 性能
 node tools/check-final.mjs       # 单文件：0 外部请求 / 0 console error / 逐场景截图 + active/lyric
 node tools/check-real-full.mjs   # 真音频完整播放：切点误差 / 结束页 / 重播
 node tools/test-real-audio.mjs   # 音轨引擎 24 项断言
 node tools/check-autoplay-fallback.mjs  # 自动播放被拦 → 海报 + 点击起播
-node tools/contact-sheet.mjs     # 全片接触表
+node tools/contact-sheet.mjs     # 全片接触表（_project/shots/）
 ```
 
 **门禁标准**：`validate.failed=0`、`check-final.summary` 全 true、`check-real-full.allOk=true`、
@@ -174,20 +182,23 @@ node tools/contact-sheet.mjs     # 全片接触表
 
 ## 导出 MP4
 
-生成的项目里自带离线逐帧导出工具（不是录屏，画面不会掉帧、音画不会漂移）：
+生成的项目里自带离线逐帧导出工具（不是录屏，画面不会掉帧、音画不会漂移）。
+在生成的 `_project/` 里执行：
 
 ```bash
-node tools/export-video.mjs                    # shots/lyric-video.mp4（30fps / 1600×900）
+cd _project
+node tools/export-video.mjs                    # ../lyric-video.mp4（30fps / 1600×900）
 node tools/export-video.mjs --fps 50 --scale 1.2   # 50fps / 1920×1080
-node tools/export-video.mjs --start 6 --end 18 --out shots/chorus.mp4   # 只导出一段
+node tools/export-video.mjs --start 6 --end 18 --out chorus.mp4   # ../chorus.mp4，只导一段
 ```
 
-- 原理：无头 Chrome 打开 `index.html?export=1` 逐帧调用 `renderAt(t)` 截图，再用 ffmpeg 把 PNG 序列
-  和项目音轨合成为 H.264/AAC MP4；音轨直接取 `assets/song_clip.mp3`，不经过浏览器。
+- 原理：无头 Chrome 打开 `_project/index.html?export=1` 逐帧调用 `renderAt(t)` 截图，再用 ffmpeg 把 PNG 序列
+  和项目音轨合成为 H.264/AAC MP4；音轨直接取 `_project/assets/song_clip.mp3`，不经过浏览器。
+- 画面淡入淡出由页面按时间渲染；导出整片时音轨也做对应的淡入/淡出。
 - 依赖：`npm install --prefix tools`（puppeteer-core）+ ffmpeg（PATH / `FFMPEG_PATH` /
   `pip install imageio-ffmpeg`）。
-- 参数：`--fps`、`--scale`、`--out`、`--start/--end`、`--crf`、`--preset`、`--show-ui`（保留控件）、
-  `--keep-frames`（保留 PNG 帧调试）。
+- 参数：`--fps`、`--scale`、`--out`（相对交付目录）、`--start/--end`、`--crf`、`--preset`、
+  `--show-ui`（保留控件）、`--keep-frames`（保留 PNG 帧调试）。
 
 ## 环境要求
 
@@ -230,6 +241,20 @@ versefield/                  ← 仓库根 = DSH 技能目录（SKILL.md 在根�
   examples/                  示例截图（不含音频）
 ```
 
+## 生成结果目录（每次跑完的样子）
+
+```text
+<输出目录>/
+  index.html          ← 最终单文件，双击即播（可直接拷走）
+  README.md           ← 使用说明 / 时间轴 / 来源 / 版权
+  lyric-video.mp4     ← 可选：导出的视频
+  _project/           ← 工程文件（删掉不影响 index.html 播放）
+    src/ tools/ assets/ shots/ meta/
+    project.json / SCENE_BRIEF.md / build.mjs
+```
+
+主目录只放成品；QA 命令和二次生成都在 `_project/` 里执行。
+
 ## 限制与版权
 
 - **版权**：自动获取的歌曲音频、歌词版权归原权利人。本项目只提供生成工具，**仓库不包含任何音源**；
@@ -267,9 +292,13 @@ requested section, and decides per line whether a reusable SVG neon motif genuin
 a custom scene — so different songs don't share the same shots), then runs a full QA suite (scene validation,
 single-file checks, real-playback switch timing, audio engine tests).
 
-The generated project also ships `tools/export-video.mjs`, which renders the page frame-by-frame in headless
-Chrome and muxes the audio with ffmpeg into an H.264 MP4 (30 fps / 1600×900 by default; use
-`--fps 50 --scale 1.2` for 1080p/50 fps, or `--start/--end` to export a section).
+The generated project also ships `tools/export-video.mjs` (run it inside `_project/`), which renders the page
+frame-by-frame in headless Chrome and muxes the audio with ffmpeg into an H.264 MP4 (30 fps / 1600×900 by
+default; use `--fps 50 --scale 1.2` for 1080p/50 fps, or `--start/--end` to export a section).
+
+Each generated project has a clean delivery root — `index.html`, `README.md`, optional `lyric-video.mp4` —
+while all build files live in `_project/`. Scene transitions and the intro/outro use smooth fades
+(configurable via `fade` / `fade_in` / `fade_out` in the plan), and the MP4 keeps the same fades.
 
 ```text
 # in a DSH session

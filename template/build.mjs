@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 /**
- * build.mjs — 把 src/ 下的页面打包成根目录的单文件 index.html
+ * build.mjs — 把 src/ 下的页面打包成单文件 index.html
  * 规则：
  *   <link rel="stylesheet" href="style.css">  -> 内联 <style>
  *   <script src="xxx.js"></script>            -> 内联 <script>
  * 缺失的脚本（例如场景文件还没交付）会给出警告并跳过；全部资源必须内联，
  * 最终 index.html 双击即可离线运行，无任何外部请求。
+ *
+ * 生成的目录约定：
+ *   <交付目录>/index.html           ← 给用户双击的成品
+ *   <交付目录>/_project/index.html  ← 工程内部副本（QA 工具使用）
+ * 本文件位于 _project/ 时，会自动把成品复制到上一级交付目录。
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, copyFileSync } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -39,11 +44,15 @@ html = html.replace(/<script\s+src="([^"]+)"\s*><\/script>/g, (m, src2) => {
   return `<script>\n/* ===== ${src2} ===== */\n${code}\n</script>`;
 });
 
+let song = '';
+try {
+  song = JSON.parse(readFileSync(resolve(ROOT, 'project.json'), 'utf8')).song || '';
+} catch (e) { /* project.json 可选 */ }
+
 const banner = `<!--
-  把回忆拼好给你 · deepseek-v4.1flash1017模型能力测试
-  单文件离线版 · v2 霓虹回忆 DJ Remix（由 build.mjs 从 src/ 打包生成，请勿直接手改本文件）
+  ${song ? song + ' · ' : ''}VerseField 单文件离线版（由 build.mjs 从 _project/src/ 打包生成，请勿直接手改本文件）
   生成时间：${new Date().toISOString()}
-  结构：helpers.js + timeline.js + art.js + 15 个 SVG 场景 + audio.js(真实音轨) + core.js
+  结构：helpers.js + timeline.js + art.js + 全部 SVG 场景 + audio.js(真实音轨) + core.js
 -->`;
 html = html.replace('<!DOCTYPE html>', '<!DOCTYPE html>\n' + banner);
 
@@ -51,6 +60,14 @@ writeFileSync(OUT, html, 'utf8');
 
 const kb = (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1);
 console.log(`[build] ${OUT}  ${kb} KB`);
+
+// _project 结构：自动把成品同步到上一级的交付目录
+if (basename(ROOT) === '_project') {
+  const delivery = resolve(ROOT, '..', 'index.html');
+  copyFileSync(OUT, delivery);
+  console.log(`[build] ${delivery}  ${kb} KB`);
+}
+
 if (missing.length) {
   console.warn('[build] 缺失文件（已跳过）：\n  - ' + missing.join('\n  - '));
   // 缺失关键文件时给出明确提示

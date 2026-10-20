@@ -46,6 +46,12 @@ body::before {
 #overlay { position: absolute; inset: 0; pointer-events: none; }
 #overlay > * { pointer-events: none; }
 
+/* 整片淡入/淡出黑场：z-index 低于开始/结束遮罩（25/26），高于歌词与控件 */
+#fadeLayer {
+  position: absolute; inset: 0; z-index: 24;
+  background: #000; opacity: 0; pointer-events: none;
+}
+
 /* ---------------- 顶部标题 ---------------- */
 #topbar {
   position: absolute; top: 0; left: 0; right: 0;

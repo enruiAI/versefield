@@ -33,6 +33,9 @@
         <button class="ctrl-btn" id="fsBtn">全屏</button>
       </footer>
 
+      <!-- 整片淡入/淡出黑场（core.js 按时间写入 opacity；位于开始/结束遮罩下方） -->
+      <div id="fadeLayer"></div>
+
       <div id="startOverlay">
         <div class="start-kicker">{{KICKER}}</div>
         <h1 class="start-title">{{SONG}}</h1>

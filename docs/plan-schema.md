@@ -5,6 +5,9 @@
   "song": "把回忆拼好给你",
   "artist": "cici_",
   "style": "neon-dj",
+  "fade": 0.28,
+  "fade_in": 0.6,
+  "fade_out": 0.8,
   "scene_policy": "flexible",
   "out": "versefield/把回忆拼好给你",
   "audio": {
@@ -78,6 +81,9 @@
 
 - `song` / `artist`：歌名 / 歌手。
 - `style`：视觉风格，目前只有 `neon-dj`。
+- `fade`：场景交叉淡化秒数（默认 `0.28`；设 `0` 关闭，恢复硬切）。
+- `fade_in` / `fade_out`：片头 / 片尾黑场淡入淡出秒数（默认 `0.6` / `0.8`；设 `0` 关闭）。
+  画面淡变由页面按时间轴确定渲染，导出的 MP4 会一起带上（音轨也做对应淡入淡出）。
 - `scene_policy`：画面分配策略，**默认 `flexible`**。
   - `flexible`：按歌词与模板画面的贴合度灵活判断，**不强制比例**。多数歌词意思不同，所以多数句子应 custom；
     只有这句的画面构思和某个 motif 真正一致时才用模板。scaffold 只给提醒（`warnings`），不拦生成：
@@ -114,7 +120,9 @@
 - `audio.pulse_hex_file`：可选；省略时 scaffold 用 build_pulse_table 自动计算（需要 ffmpeg）。
 - `audio.duration`：可选；省略时用 ffmpeg 探测。
 - 生成的 `project.json` 与 plan 类似，但 `scenes` 里是场景级时间（s01 从 0 开始），并额外记录
-  `scene_policy / custom_ratio / palette_shift / warnings`；tools 的 QA 脚本读它。
+  `scene_policy / custom_ratio / palette_shift / fade / fade_in / fade_out / warnings`；tools 的 QA 脚本读它。
+- 交付目录结构与视频导出：最终成品（`index.html`、`README.md`、`lyric-video.mp4`）放在输出目录根，
+  工程文件统一放进 `<输出目录>/_project/`；QA / 导出命令都在 `_project/` 下执行。
 
 ## 示例：用户要求「尽量原创」
 
