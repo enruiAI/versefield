@@ -85,9 +85,29 @@ python <SKILL>/scripts/align_and_cut.py \
 - 用户上传的 BGM 如果没有官方 LRC：让用户给每句大概时间，或在 Step 1 里手写 `meta/lyrics.json`；
   仍用 align_and_cut 做复测（容忍度可放宽到 0.8s）。
 
-### Step 4 给每句分配画面模板（混合模式）
+### Step 4 给每句分配画面（原创优先，默认 ≥70% custom）
 
-读 `template/motifs/motif_catalog.json`，按 **歌词含义** 给每句选 motif（m01–m15）：
+**先为每句想画面，再决定画法。** 对每句歌词写一个 `concept`（这句要画什么、为什么这样画），
+再从画面类型清单里选 `scene_type`，最后决定这一句是 **custom（单独绘制）** 还是 **motif（模板兜底）**。
+
+**默认策略：`original-first`（原创优先）**
+- custom 数量 ≥ `max(3, ceil(句数 × 0.7))`；≤4 句时全部 custom。
+- 首句、末句、副歌/标题句/情绪峰值句必须 custom。
+- motif 只能用于低信息量/重复/过渡句，**≤30%、最多 4 句，且不允许连续两句都用模板**。
+- 模板表（m01–m15）只是兜底参考：不要因为歌词里出现「雨/烟花/光/时钟」就直接套 m06/m10/m03/m13；
+  先想原创画面，实在没有信息量才用模板。
+- 用户明确说「快速版 / 用模板」→ plan 里写 `"scene_policy": "template-ok"`；
+  用户说「全部独立场景」→ 全部 custom。
+
+**每句必须写进 plan 的字段**（格式见 `docs/plan-schema.md`）：
+- `concept`：一句画面概念（custom 必填，建议 motif 也写）——这是画师唯一的创作依据。
+- `scene_type`：画面类型（custom 必填，相邻不得相同）。
+- `custom`：true / false；`motif`：custom 可留空，motif 句填 m01–m15。
+
+**画面类型清单**（`scene_type` 只能从以下值选）：
+`人物剪影 / 物体特写 / 建筑空间 / 自然景观 / 城市夜景 / 抽象图形 / 几何结构 / 文字排版 / 机械装置 / 第一人称视角 / 微观质感 / 光影剧场 / 其他`
+
+**模板兜底表**（仅用于低信息量过渡句，不要照着抄构图）：
 
 | motif | 画面 | 适合的歌词意象 |
 |---|---|---|
@@ -107,11 +127,14 @@ python <SKILL>/scripts/align_and_cut.py \
 | m14 | 松手让光球升起 | 放下/松手/升空/释然 |
 | m15 | 燃烧的心 | 心/燃烧/炙热/爱自己/火 |
 
-**混合模式规则（默认）**：
-- 副歌/标题句/情绪最强或最独特的 1–3 句标 `custom: true`（需要单独绘制，效果最好）；
-- 其余句用 motif 模板（快、风格统一、成本低）。
-- 用户没特别要求时，custom 数量 = `min(3, ceil(句数 * 0.25))`，优先给副歌首句和最后一句。
-- 用户要求“全部独立场景”就把所有行标 custom；“全部模板”就都不标。
+**原创性硬要求**（scaffold 会写进 SCENE_BRIEF，画师执行）：
+- custom 场景不得复刻 m01–m15 的构图骨架（星空+剪影、雨窗、眼睛海、烟花、时钟、漩涡、燃烧的心…）；
+- 同一项目里相邻 custom 必须换 `scene_type`，整片至少出现 4 种画面类型（句数少时按句数）；
+- 每首歌 scaffold 会自动给整套调色板做色相偏移（`palette_shift`），所以模板场景也不会和别的歌一模一样；
+- 保留 `neon-dj` 风格，但「画什么」必须来自这句歌词，不能是「换色重画模板」。
+
+scaffold 会强制检查：custom 比例不足、缺 concept/scene_type、连续模板、相邻同类型、类型种数不足都会直接报错退出。
+确实要模板快速版，必须显式设 `"scene_policy": "template-ok"`。
 
 ### Step 5 生成项目
 
@@ -124,15 +147,22 @@ python <SKILL>/scripts/scaffold.py --plan plan.json --out "<输出目录>" --bui
 scaffold 会：复制页面工程 + motif 场景 → 生成 `src/timeline.js`（场景起止/歌词/调色板/卡点表）→
 内联音频 → 生成 index/preview/test-runner → 写 `project.json`、`README.md`，有 custom 时写 `SCENE_BRIEF.md`。
 `--build` 会直接 `node build.mjs` 产出单文件 `index.html`。
-**门禁**：scaffold 输出 `ok: true`，`scene_count` 与歌词句数一致（s01 从 0s 开始，其余以起唱点切换）。
+每首歌的整套调色板会按「歌名 + 歌手」自动做 `palette_shift` 色相偏移（同一模板在不同歌里颜色不同）；
+要关闭或手动指定时见 `docs/plan-schema.md`。
 
-### Step 6 画 custom 场景（如有）
+**门禁**：scaffold 输出 `ok: true`，`scene_count` 与歌词句数一致（s01 从 0s 开始，其余以起唱点切换）；
+`scene_policy=original-first` 时 `custom_ratio ≥ 0.7`、custom 句都带 concept/scene_type，否则 scaffold 直接报错。
 
-对 `SCENE_BRIEF.md` 里每个 custom 场景，派场景画师（subagent / teammate）：
-- 必读：`<SKILL>/docs/scene-authoring.md` + 项目 `src/art.js` + `src/scenes/` 里任意两个 motif 场景；
-- 只改分到的 `src/scenes/sXX.js`，页面其它文件不许动；
+### Step 6 画 custom 场景（原创优先模式下占大头）
+
+默认一个项目有 70%+ 的句子是 custom，**按 2–4 个场景一组派给多个画师并行**（subagent / teammate）：
+
+- 必读：`<SKILL>/docs/scene-authoring.md` + 项目根目录 `SCENE_BRIEF.md`（每句的 concept / scene_type）+
+  项目 `src/art.js` + `src/scenes/` 里任意两个 motif 场景（只为理解 API，不要照抄构图）；
+- 每个画师先用自己的话复述分到的 `concept`，再动手；只改分到的 `src/scenes/sXX.js`，页面其它文件不许动；
+- **不要复刻 m01–m15 的构图**；相邻场景的画面类型/机位/主体要有明显差别；配色用本片 `scene.palette`；
 - 自检：`node tools/check-scene.mjs sXX`（退出码 0、errors=[]、badPaths=[]、nodes<800）+
-  截图 `src/preview.html?scene=sXX&t=...&anim=0`；
+  截图 `src/preview.html?scene=sXX&t=...&anim=0`，把截图和 concept 一起报给 Lead；
 - 全画完重新 `node build.mjs`。
 
 ### Step 7 QA（全部通过才算交付）
@@ -153,7 +183,9 @@ node tools/contact-sheet.mjs        # 生成接触表
 - check-final：`externalOk/consoleOk/headerOk/durationOk/sceneLayersOk/syncOk/shotsOk` 全 true；
 - check-real-full：`allOk=true`（切点误差 ≤0.45s），结束页和重播正常；
 - test-real-audio：`pass=24 fail=0`；
-- 接触表亲自看一遍（或让画师看），确认每格画面成立、无 TODO 占位。
+- 接触表亲自看一遍（或让画师看），确认每格画面成立、无 TODO 占位；
+- **画面原创性复核**：把接触表与 15 个模板逐格对照——custom 场景如果像某个 mXX 模板就重画；相邻场景构图/机位不能雷同；
+  整片画面类型 ≥ `min(4, custom 句数)` 种；`project.json` 里 `custom_ratio ≥ 0.7`（除非用户明确要 template-ok）。
 
 **不通过就修再跑**；不要说“应该没问题”。修完重新 `node build.mjs` 再全量 QA。
 
@@ -201,6 +233,8 @@ node tools/contact-sheet.mjs        # 生成接触表
 5. 生成项目的 `tools/` 需要 `npm install` 才能跑浏览器 QA；构建（build.mjs）不需要。
 6. **不要在生成的页面里加固定宣传文案 / 模型名 / 水印**（用户明确不需要）；页面只保留歌名、歌词、播放控件。
 7. 交付前确认 `grep -r "TODO — CUSTOM SCENE" src/scenes/` 为空（除非用户同意先用占位）。
+8. **原创优先是默认交付标准**：除非用户明确要求「模板快速版」，不得用 `scene_policy: "template-ok"` 绕过；
+   交付前确认 `custom_ratio ≥ 0.7`、SCENE_BRIEF 里的 concept 都已落实、custom 场景没有复刻模板构图。
 
 ## 6. 模板库与扩展
 

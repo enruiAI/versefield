@@ -63,6 +63,8 @@ for f in template/tools/*.mjs template/build.mjs; do node --check "$f"; done
 
 - 一个 PR 只做一件事，描述里写清楚「为什么 + 怎么验证」；
 - 不提交版权音源、歌词文件、含内联音频的成品 HTML、`node_modules`、`__pycache__`；
+- custom 场景不得复刻已有 motif 的构图骨架（不同歌曲复用同一批画面是明确要避免的问题）；
+  新增 motif 时也请保持“兜底模板”定位，不要成为默认画面；
 - 改动 UI/场景请附截图；改动脚本请附实际运行输出；
 - 保持代码风格：Python 4 空格 / JS 2 空格，中文注释可以，但关键日志建议中英混合便于排查。
 - 提交的代码默认按 [Apache License 2.0](LICENSE) 授权（与项目一致）。

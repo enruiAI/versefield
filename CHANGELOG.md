@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.2 — 2026-10-20
+
+### 变更
+
+- **画面原创优先（重要）**：默认 `scene_policy: "original-first"`，每个项目至少 70% 的句子用 custom 单独绘制
+  （≤4 句时全部 custom），首尾句/副歌/情绪句必须 custom；15 个 motif 只允许用于低信息量过渡句，
+  最多 30% 且不允许连续两句复用模板。解决「不同歌曲生成出来画面很像同一支 MV」的问题。
+- **plan 字段增强**：每句新增 `concept`（画面概念）与 `scene_type`（画面类型，13 种枚举）。
+  custom 必填；相邻 custom 不得同类型；整片至少 `min(4, custom 数)` 种类型。scaffold 对不满足的策略直接报错。
+- **每首歌独立配色**：scaffold 按「歌名 + 歌手」自动对整套调色板做 -50°~50° 色相偏移（`palette_shift`），
+  复用的模板场景也会换一套颜色；可用 `palette_variant: false` 关闭或手动指定角度。
+- **`SCENE_BRIEF.md` 重写**：加入整片视觉基调、原创性硬要求、模板避让清单、每句 concept/画面类型对照表，
+  custom 场景文件头部直接写入该句 concept；画师不用猜。
+- SKILL.md / docs（plan-schema、scene-authoring）/ README 同步更新；涉及 70%+ 场景，画师按 2–4 场景一组并行。
+- 仍可用 `"scene_policy": "template-ok"` 显式切回模板快速版（仅当用户明确要求）。
+
 ## v0.1.1 — 2026-10-19
 
 ### 变更

@@ -22,7 +22,7 @@ VerseField（词场）是一个 **DSH Skill + 命令行工具**：给一首歌�
 - **搜歌词 + 逐句时间轴**（QQ 音乐主源 / 网易云备源）
 - **找完整音源**（自动多平台搜索，或用你本地的 BGM）
 - **对齐校验 + 截取**：人声起音 vs LRC 逐句比对，按起唱点截出用户要的片段
-- **分配画面**：15 个内置 SVG 场景模板 + 混合模式（关键句单独绘制）
+- **分配画面**：原创优先（默认 ≥70% 句子单独绘制）+ 15 个兜底模板；每句要有画面概念与画面类型
 - **生成单文件网页**：每句歌词一个 SVG 动画场景，离线双击就能播放
 - **自动 QA**：场景校验、单文件产物检查、真音频完整播放切点比对、音轨引擎自测
 
@@ -31,8 +31,11 @@ VerseField（词场）是一个 **DSH Skill + 命令行工具**：给一首歌�
 
 ## 特性
 
-- **一句一景**：15 个可复用霓虹场景模板（星空 / 雨窗 / 眼睛海 / 烟花 / 漩涡 / 时钟 / 燃烧的心…），
-  按歌词含义自动挑选；副歌/标题句等关键镜头可以单独绘制。
+- **原创优先**：默认每个项目 ≥70% 的句子单独绘制（custom），15 个模板只用于低信息量过渡句/兜底；
+  每句要写画面概念（`concept`）与画面类型（`scene_type`），scaffold 强制检查比例、首尾镜头、连续模板和类型多样性，
+  避免不同歌曲复用同一批画面。
+- **一句一景**：15 个可复用霓虹场景模板（星空 / 雨窗 / 眼睛海 / 烟花 / 漩涡 / 时钟 / 燃烧的心…）作为兜底库，
+  按歌词含义挑选；整片调色板按歌名自动做色相偏移，同一模板在不同歌里颜色也不同。
 - **真实音轨 + 卡点**：从真实音频离线分析 50fps 起音包络，场景里的鼓点、光环、心跳与音乐逐帧对齐。
 - **歌词/声音强制校验**：解决“同名单曲≠同一录音”的坑——起音校验 + 时长/版本守卫，不通过不交付。
 - **单文件交付**：音频 base64 内联，最终 `index.html` 可离线播放，0 外部请求。
@@ -66,7 +69,7 @@ cd versefield && ./install.sh
 ```
 
 > **从压缩包安装**：从 [Releases](https://github.com/enruiAI/versefield/releases) 下载
-> `versefield-v0.1.1.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
+> `versefield-v0.1.2.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
 > 文件夹整个放进 `~/.dsh/skills/` 即可。如果解压出来是 `versefield-main/`，先改名为 `versefield`。
 >
 > **确认安装**：`~/.dsh/skills/versefield/SKILL.md` 存在即可，DSH 会自动刷新技能列表。
@@ -122,13 +125,16 @@ npm install --prefix my-lyric-video/tools   # 首次
    ├─ fetch_lyrics.py   → 逐句 LRC / lyrics.json
    ├─ fetch_audio.py    → 完整音源（自动搜 / 用户文件 / 链接）
    ├─ align_and_cut.py  → 起音校验 + 截取 + pulse 表 + cut.json
-   ├─ 【画面分配】      15 个 motif 选型；关键句标 custom
+   ├─ 【画面分配】      每句写 concept/画面类型；≥70% custom，模板只兜底
    ├─ scaffold.py       → timeline / scenes / audio-data / tools / README / project.json
    ├─ 【补画 custom】   派场景画师；check-scene + 截图自检
    └─ QA                validate / check-final / check-real-full / test-real-audio / contact-sheet
 ```
 
-## 内置场景模板
+## 内置场景模板（兜底库）
+
+> 原创优先模式下，每个项目最多 30% 的句子使用模板；模板只用于低信息量/过渡句，
+> 且 scaffold 会按「歌名 + 歌手」自动偏移整套配色，所以同一个模板在不同歌曲里不会长得一样。
 
 | id | 画面 | 适合的歌词意象 |
 |---|---|---|
@@ -227,9 +233,9 @@ versefield/                  ← 仓库根 = DSH 技能目录（SKILL.md 在根�
 lyric video** as a single offline HTML file.
 
 It auto-fetches lyrics & full audio, verifies lyric/audio alignment using vocal-onset detection, cuts the
-requested section, maps each lyric line to one of 15 reusable SVG neon scene templates (or custom-drawn
-scenes for key lines), and runs a full QA suite (scene validation, single-file checks, real-playback
-switch timing, audio engine tests).
+requested section, and by default draws **at least 70% of the lyric lines as custom scenes** (the 15 SVG
+neon motifs are fallbacks only), then runs a full QA suite (scene validation, single-file checks,
+real-playback switch timing, audio engine tests).
 
 ```text
 # in a DSH session
