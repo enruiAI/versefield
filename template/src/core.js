@@ -171,6 +171,7 @@
     if (!qs.has('t')) return;
     var tt = clamp(parseFloat(qs.get('t')) || 0, 0, TL.duration);
     state.started = true;
+    state.static = qs.has('export');   // 视频导出：由外部逐帧设置时间，主循环不再推进
     state.playing = qs.get('play') === '1';
     state.t = tt;
     state.activeId = null;
@@ -619,6 +620,12 @@
 
   /* ------------------------------ 主循环 ------------------------------ */
   function tick(now) {
+    if (state.static) {
+      // 视频导出模式：只渲染 renderAt() 设定的时间，不推进动画/音频
+      render(state.t, 0);
+      raf(tick);
+      return;
+    }
     var dt = Math.min(0.06, Math.max(0, (now - state.lastNow) / 1000));
     state.lastNow = now;
 
@@ -652,6 +659,10 @@
     replay: replay,
     toggle: togglePlay,
     state: state,
-    renderAt: function (t) { render(t, 0); }
+    renderAt: function (t) {
+      state.t = clamp(Number(t) || 0, 0, TL.duration);
+      render(state.t, 0);
+      return state.t;
+    }
   };
 })(typeof window !== 'undefined' ? window : this);

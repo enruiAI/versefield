@@ -39,6 +39,8 @@ VerseField（词场）是一个 **DSH Skill + 命令行工具**：给一首歌�
 - **真实音轨 + 卡点**：从真实音频离线分析 50fps 起音包络，场景里的鼓点、光环、心跳与音乐逐帧对齐。
 - **歌词/声音强制校验**：解决“同名单曲≠同一录音”的坑——起音校验 + 时长/版本守卫，不通过不交付。
 - **单文件交付**：音频 base64 内联，最终 `index.html` 可离线播放，0 外部请求。
+- **可导出 MP4**：生成项目自带 `tools/export-video.mjs`，无头 Chrome 按时间轴逐帧渲染 + ffmpeg 合成音轨
+  （不是录屏），默认 30fps/1600×900，可出 50fps/1920×1080，支持只导一段。
 - **可扩展**：场景模板、视觉风格、QA 工具都是独立文件，方便继续加。
 
 ## 快速开始
@@ -69,7 +71,7 @@ cd versefield && ./install.sh
 ```
 
 > **从压缩包安装**：从 [Releases](https://github.com/enruiAI/versefield/releases) 下载
-> `versefield-v0.1.3.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
+> `versefield-v0.1.4.zip`（或 GitHub 页面上的 “Download ZIP”），解压后把 `versefield/`
 > 文件夹整个放进 `~/.dsh/skills/` 即可。如果解压出来是 `versefield-main/`，先改名为 `versefield`。
 >
 > **确认安装**：`~/.dsh/skills/versefield/SKILL.md` 存在即可，DSH 会自动刷新技能列表。
@@ -170,11 +172,29 @@ node tools/contact-sheet.mjs     # 全片接触表
 **门禁标准**：`validate.failed=0`、`check-final.summary` 全 true、`check-real-full.allOk=true`、
 `test-real-audio` 全过、`grep "TODO — CUSTOM SCENE"` 为空、接触表人工过目。
 
+## 导出 MP4
+
+生成的项目里自带离线逐帧导出工具（不是录屏，画面不会掉帧、音画不会漂移）：
+
+```bash
+node tools/export-video.mjs                    # shots/lyric-video.mp4（30fps / 1600×900）
+node tools/export-video.mjs --fps 50 --scale 1.2   # 50fps / 1920×1080
+node tools/export-video.mjs --start 6 --end 18 --out shots/chorus.mp4   # 只导出一段
+```
+
+- 原理：无头 Chrome 打开 `index.html?export=1` 逐帧调用 `renderAt(t)` 截图，再用 ffmpeg 把 PNG 序列
+  和项目音轨合成为 H.264/AAC MP4；音轨直接取 `assets/song_clip.mp3`，不经过浏览器。
+- 依赖：`npm install --prefix tools`（puppeteer-core）+ ffmpeg（PATH / `FFMPEG_PATH` /
+  `pip install imageio-ffmpeg`）。
+- 参数：`--fps`、`--scale`、`--out`、`--start/--end`、`--crf`、`--preset`、`--show-ui`（保留控件）、
+  `--keep-frames`（保留 PNG 帧调试）。
+
 ## 环境要求
 
-- Node.js ≥ 18（构建 + QA）
+- Node.js ≥ 18（构建 + QA + 视频导出）
 - Python ≥ 3.10，`pip install numpy imageio-ffmpeg yt-dlp`
-- Chrome / Edge / Chromium（仅 QA 需要；可用 `CHROME_PATH` 指定）
+- Chrome / Edge / Chromium（QA 与视频导出需要；可用 `CHROME_PATH` 指定）
+- ffmpeg（仅视频导出需要；PATH / `FFMPEG_PATH` / imageio-ffmpeg 自带）
 - 网络：歌词与音源搜索（QQ 音乐 / 网易云 / B 站）
 - 平台说明：开发和测试主要在 Windows 上完成；macOS/Linux 的 Chrome/Python 路径做了自动探测，但未深度测试。
 
@@ -199,7 +219,7 @@ versefield/                  ← 仓库根 = DSH 技能目录（SKILL.md 在根�
     src/                     页面引擎（helpers / art / core / audio / style）
     motifs/                  15 个场景模板 + motif_catalog.json
     templates/               index / preview / test-runner / README / 自定义场景模板
-    tools/                   QA 脚本（project.json 驱动）
+    tools/                   QA 脚本 + export-video.mjs（MP4 导出）
   docs/
     plan-schema.md           plan.json 结构
     scene-authoring.md       自定义场景绘制规范
@@ -236,6 +256,10 @@ It auto-fetches lyrics & full audio, verifies lyric/audio alignment using vocal-
 requested section, and decides per line whether a reusable SVG neon motif genuinely fits (otherwise it draws
 a custom scene — so different songs don't share the same shots), then runs a full QA suite (scene validation,
 single-file checks, real-playback switch timing, audio engine tests).
+
+The generated project also ships `tools/export-video.mjs`, which renders the page frame-by-frame in headless
+Chrome and muxes the audio with ffmpeg into an H.264 MP4 (30 fps / 1600×900 by default; use
+`--fps 50 --scale 1.2` for 1080p/50 fps, or `--start/--end` to export a section).
 
 ```text
 # in a DSH session

@@ -30,6 +30,7 @@ description: 歌词视频自动生成技能（VerseField / 词场，也兼容旧
   （需要 imageio-ffmpeg、yt-dlp；已装）
 - Node：PATH 里的 `node`（用于 build.mjs + puppeteer QA）
 - 首次在生成项目里跑 QA 前：`npm install --prefix tools`（装 puppeteer-core，约 20s）
+- ffmpeg：导出 MP4 时需要（PATH / `FFMPEG_PATH` / `pip install imageio-ffmpeg`）；只生成 HTML 不需要
 - 网络：QQ 音乐 / 网易云 / B 站接口可用（脚本内已处理 UA/Referer）
 
 ## 2. 全流程（按顺序执行，每步都有质量门禁）
@@ -195,13 +196,17 @@ node tools/contact-sheet.mjs        # 生成接触表
 
 **不通过就修再跑**；不要说“应该没问题”。修完重新 `node build.mjs` 再全量 QA。
 
+用户要视频时（可选）：QA 全过后在项目根目录跑 `node tools/export-video.mjs`（离线逐帧渲染 + ffmpeg 合成，
+不是录屏；默认 30fps/1600×900，`--fps 50 --scale 1.2` 出 1080p/50fps），检查 `shots/*.mp4` 的时长和音画同步。
+
 ### Step 8 交付
 
 用 `present` 给用户：
 1. `index.html`（最终单文件，双击即播）；
 2. `assets/song_clip.mp3`（试听/核对用）；
 3. `shots/contact_sheet.png`（全片接触表）；
-4. `README.md`（使用说明 + 时间轴 + 来源 + 版权提示）。
+4. `README.md`（使用说明 + 时间轴 + 来源 + 版权提示）；
+5. 如果用户要视频：`shots/lyric-video.mp4`（`node tools/export-video.mjs` 产出；需要 ffmpeg + puppeteer-core）。
 并说明：浏览器需要点一次「点击开始」才有声音；音频来源与版权提示；如需要换片段/换风格可重跑。
 
 ## 3. 目录与产物
@@ -210,11 +215,11 @@ node tools/contact-sheet.mjs        # 生成接触表
 <输出目录>/
   index.html               最终单文件（离线可播）
   src/                     开发工程（timeline/scenes/audio-data/…）
-  tools/                   QA 脚本（读 project.json）
+  tools/                   QA 脚本 + export-video.mjs（视频导出）
   assets/song_clip.mp3     截取后的音轨
   project.json             项目配置（场景/时间轴/来源/custom 标记）
   README.md / SCENE_BRIEF.md
-  shots/                   QA 截图 + 接触表
+  shots/                   QA 截图 + 接触表 + lyric-video.mp4（可选）
   meta/                    plan.json / lyrics.json / cut.json / pulse_table.txt
 ```
 
@@ -229,6 +234,8 @@ node tools/contact-sheet.mjs        # 生成接触表
 | 页面声音与歌词不同步 | 时间轴没按 cut.json 的 rel 时间 | 重新 scaffold；检查 `project.json` 的 `start` 与 cut.json `rel` 是否一致 |
 | custom 场景还是 TODO | 画师没交付 | 重新派单；交付前 grep `TODO — CUSTOM SCENE` |
 | QA 依赖缺 puppeteer | 没装 node_modules | `npm install --prefix tools` |
+| export-video 找不到 ffmpeg | PATH/FFMPEG_PATH 没有 ffmpeg | `pip install imageio-ffmpeg`，或设置 `FFMPEG_PATH`，或 `--ffmpeg <路径>` |
+| 导出视频音画不同步 | 用了录屏/剪映录浏览器 | 改用 `tools/export-video.mjs`（逐帧渲染 + 音轨直接合成，不做实时录屏） |
 
 ## 5. 硬约束（写进交付说明，不要对用户隐瞒）
 
@@ -241,6 +248,8 @@ node tools/contact-sheet.mjs        # 生成接触表
 7. 交付前确认 `grep -r "TODO — CUSTOM SCENE" src/scenes/` 为空（除非用户同意先用占位）。
 8. **模板只在真正贴合时使用**：不要整片套模板省事；如用户明确要求「尽量原创 / 全部独立场景」，
    用 `original-first` 的 70% 门禁；交付前确认 SCENE_BRIEF 里 custom 的 concept 已落实、custom 场景没有复刻模板构图。
+9. **MP4 导出是逐帧离线渲染**：`node tools/export-video.mjs` 用无头 Chrome 渲染 + ffmpeg 合成音轨，
+   不依赖浏览器实时播放/录屏，所以画面与 HTML 一致、不会掉帧；需要 ffmpeg（否则只交付 HTML + 说明）。
 
 ## 6. 模板库与扩展
 

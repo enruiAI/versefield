@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.4 — 2026-10-20
+
+### 新增
+
+- **MP4 视频导出**：生成项目新增 `tools/export-video.mjs`。用无头 Chrome 打开 `index.html?export=1`，
+  按时间轴逐帧渲染并截图，再用 ffmpeg 把 PNG 序列 + 项目音轨合成 H.264/AAC MP4。
+  音轨直接取 `assets/song_clip.mp3`，不经过浏览器，因此不会掉帧、不会音画漂移（不是录屏）。
+  - 默认 30fps / 1600×900；`--fps 50 --scale 1.2` 可出 1920×1080 / 50fps（对齐 50fps 卡点表）；
+  - 支持 `--start/--end` 只导出一段、`--out` 指定产物、`--show-ui` 保留控件、`--keep-frames` 调试；
+  - 依赖 ffmpeg（PATH / `FFMPEG_PATH` / `pip install imageio-ffmpeg`）+ puppeteer-core。
+- `core.js` 增加导出模式：`?export=1` 冻结主循环与 CSS 动画，`window.__player.renderAt(t)` 逐帧渲染。
+- SKILL.md / README / 生成项目的 README 增加“导出 MP4”说明与参数示例。
+
 ## v0.1.3 — 2026-10-20
 
 ### 调整

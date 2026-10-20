@@ -8,7 +8,8 @@
 
 - Node.js ≥ 18
 - Python ≥ 3.10，`pip install numpy imageio-ffmpeg yt-dlp`
-- Chrome / Edge / Chromium（跑 QA 用；可用 `CHROME_PATH` 指定）
+- Chrome / Edge / Chromium（跑 QA / 导出视频用；可用 `CHROME_PATH` 指定）
+- ffmpeg（仅导出 MP4 需要；PATH / `FFMPEG_PATH` / imageio-ffmpeg）
 - 首次在生成项目里跑浏览器 QA：`npm install --prefix <生成项目>/tools`
 
 ## 目录约定
@@ -19,7 +20,7 @@
   - `src/`：页面引擎（helpers / art / core / audio / style）
   - `motifs/`：可复用场景模板 + `motif_catalog.json`
   - `templates/`：index / preview / test-runner / README / 自定义场景模板
-  - `tools/`：QA 脚本（读 `project.json`，场景数/时长自适应）
+  - `tools/`：QA 脚本 + `export-video.mjs`（逐帧渲染导出 MP4），读 `project.json`，场景数/时长自适应
 - `docs/`：plan.json 结构、自定义场景规范
 - `examples/`：示例截图（**不要提交音频或含内联音频的 HTML**）
 

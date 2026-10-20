@@ -35,10 +35,10 @@ src/
   preview.html             ← 单场景预览（?scene=s01&t=1.5&anim=0）
   test-runner.html         ← 场景自动校验
   scenes/                  ← 每句一个场景；custom 场景为单独绘制
-tools/                     ← QA 脚本（validate / check-final / check-real-full / contact-sheet…）
+tools/                     ← QA 脚本 + export-video.mjs（MP4 导出）
 assets/song_clip.mp3       ← 本页使用的音轨
 project.json               ← 本项目配置（歌名/时间轴/来源/自定义场景标记）
-shots/                     ← QA 截图 + 接触表
+shots/                     ← QA 截图 + 接触表 + lyric-video.mp4（可选）
 ```
 
 ## 五、验收命令
@@ -52,6 +52,14 @@ node tools/check-real-full.mjs      # 真音频完整播放：切点时间比对
 node tools/test-real-audio.mjs      # 音轨引擎自测（24 项断言）
 node tools/contact-sheet.mjs        # 重新生成 shots/contact_sheet.png
 ```
+
+### 导出 MP4（可选）
+
+```powershell
+node tools/export-video.mjs                         # shots/lyric-video.mp4（30fps / 1600×900）
+node tools/export-video.mjs --fps 50 --scale 1.2    # 50fps / 1920×1080
+```
+逐帧离线渲染 + ffmpeg 合成，不是录屏；需要 ffmpeg（PATH / `FFMPEG_PATH` / `pip install imageio-ffmpeg`）。
 
 ## 六、自测结论（生成时）
 
