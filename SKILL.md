@@ -309,3 +309,5 @@ node tools/contact-sheet.mjs        # 生成接触表（_project/shots/）
    有 `duration_hint` 就传 `--expect-duration`，让候选一次选对版本，避免下载后才发现不对重来。
 5. **不要重复 scaffold**：改 plan 才重跑 scaffold（会重建整个工程）；只改场景/歌词就用
    `_project/src/` + `node build.mjs` 增量更新。
+6. **只想先看效果**：可以问用户要不要「快速版」——`scene_policy=template-ok`（全模板、不画 custom），
+   能省掉画场景的几分钟；正式交付再按贴合度补 custom。
