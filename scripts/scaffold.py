@@ -103,7 +103,10 @@ def fmt_total(sec):
 
 
 # ---------- 画面原创优先策略 ----------
-# 默认 original-first：至少 70% 的句子单独绘制（custom），15 个 motif 只作过渡/兜底。
+# 画面分配策略：
+#   flexible（默认）—— 不强制比例；按歌词语义判断，模板只在真正贴合时借用，偏题就 custom。
+#   original-first —— 强制 ≥70% custom（用户明确要求“尽量原创/全部独立场景”时用）。
+#   template-ok —— 全模板快速版（用户明确要求“用模板/快速版”时用）。
 ORIGINAL_FIRST_RATIO = 0.70
 MIN_CUSTOM = 3
 SCENE_TYPES = [
@@ -111,7 +114,7 @@ SCENE_TYPES = [
     "抽象图形", "几何结构", "文字排版", "机械装置", "第一人称视角",
     "微观质感", "光影剧场", "其他",
 ]
-SCENE_POLICIES = ("original-first", "template-ok")
+SCENE_POLICIES = ("flexible", "original-first", "template-ok")
 
 
 def song_hash(text):
@@ -176,9 +179,9 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         die("lines 至少 2 句")
     header = ""   # 兼容旧 plan 字段；生成页面不再显示固定宣传文案
     style = plan.get("style") or "neon-dj"
-    policy = str(plan.get("scene_policy") or "original-first").strip()
+    policy = str(plan.get("scene_policy") or "flexible").strip()
     if policy not in SCENE_POLICIES:
-        die("plan.scene_policy 只能是 %s（默认 original-first）" % " / ".join(SCENE_POLICIES))
+        die("plan.scene_policy 只能是 %s（默认 flexible）" % " / ".join(SCENE_POLICIES))
     palette_shift = resolve_palette_shift(plan, song, artist)
     audio_info = plan.get("audio") or {}
     audio_src = audio_info.get("file")
@@ -237,9 +240,11 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
     if norm[0]["start"] < 0:
         die("lines[0].start 不能为负")
 
-    # ---------- 画面原创优先策略门禁 ----------
+    # ---------- 画面策略：统计 + 门禁 / 提醒 ----------
     custom_count = sum(1 for s in norm if s["custom"])
+    motif_count = len(norm) - custom_count
     required_custom = required_custom_count(len(norm), policy)
+    warnings = []
     if policy == "original-first":
         if custom_count < required_custom:
             die("原创优先模式要求至少 %d/%d 句使用 custom（当前 %d 句）。请给更多句子标 \"custom\": true，"
@@ -271,6 +276,40 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
             die("原创优先模式要求整片至少出现 %d 种画面类型（当前只有 %d 种）。"
                 "请给不同句子换不同的 scene_type，避免整片构图/机位雷同。"
                 % (min_types, len(set(types))))
+    elif policy == "flexible":
+        # 默认策略：不强制比例，只对明显偷懒/重复的用法给 warning，交给生成者自己判断。
+        if custom_count == 0:
+            warnings.append("本片全部使用模板（custom=0）。换歌后画面会高度重复，建议按歌词给关键句单独绘制。")
+        elif len(norm) >= 4 and custom_count / float(len(norm)) < 0.25:
+            warnings.append("模板占比偏高（custom %d/%d）。请确认这些句子与模板画面真的贴合，而不是为了省事。"
+                            % (custom_count, len(norm)))
+        # 连续使用模板：按连续区间合并成一条提醒
+        run = []
+        for s in norm + [None]:
+            if s is not None and not s["custom"]:
+                run.append(s["id"])
+                continue
+            if len(run) >= 2:
+                warnings.append("连续 %d 句使用模板（%s）。确认是否真的贴切；不贴切的话至少改一句 custom。"
+                                % (len(run), "、".join(run)))
+            run = []
+        no_concept = [s["id"] for s in norm if s["custom"] and not s["concept"]]
+        if no_concept:
+            warnings.append("custom 场景缺少 concept：%s。画师会不知道这句要画什么，建议补一句。"
+                            % "、".join(no_concept))
+        bad_types = [s["id"] for s in norm
+                     if s["custom"] and s["scene_type"] and s["scene_type"] not in SCENE_TYPES]
+        if bad_types:
+            warnings.append("custom 场景的 scene_type 不在推荐清单里：%s（建议改用清单内的类型）。"
+                            % "、".join(bad_types))
+        seen_type = None
+        for s in norm:
+            if not s["custom"]:
+                continue
+            if s["scene_type"] and seen_type == s["scene_type"]:
+                warnings.append("相邻 custom 场景重复 scene_type（%s），注意画面不要雷同。" % s["scene_type"])
+            seen_type = s["scene_type"] or seen_type
+    # template-ok：用户明确要快速版，不做提醒
 
     # 场景切点：s01 从 0 开始（含 lead-in），之后每句一句一切
     for i, s in enumerate(norm):
@@ -326,8 +365,8 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
             ) % (
                 s["id"], s["tag"],
                 s["lyric"].replace("*/", "* /"),
-                s["scene_type"] or "（未填）",
-                (s["concept"] or "（未填）").replace("*/", "* /"),
+                s["scene_type"] or "（未填 — 可选）",
+                (s["concept"] or "（未填写 — 画师先补一句画面概念）").replace("*/", "* /"),
             )
             src = header + src
             custom_ids.append(s["id"])
@@ -515,6 +554,7 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         "scene_policy": policy,
         "custom_ratio": round(custom_count / float(len(norm)), 3),
         "palette_shift": palette_shift,
+        "warnings": warnings,
         "scenes": [{
             "id": s["id"], "index": s["index"],
             "start": round(s["scene_start"], 3), "end": round(s["scene_end"], 3),
@@ -578,11 +618,15 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
             "- 歌曲：%s%s" % (song, (" · " + artist) if artist else ""),
             "- 本片 %d 句歌词：**%d 个 custom 场景** / %d 个模板过渡（scene_policy=%s）"
             % (len(norm), len(custom_ids), motif_count, policy),
+            "- 分配逻辑：%s" % (
+                "按歌词与模板画面的贴合度灵活选择；模板只在真正对得上时借用" if policy == "flexible"
+                else ("强制 ≥70% 单独绘制（用户要求尽量原创）" if policy == "original-first"
+                      else "全模板快速版（用户明确要求）")),
             "- 本片统一视觉基调：整套调色板已按 **%+.0f° 色相偏移**（每首歌不同；模板场景也使用这套颜色）。"
             % palette_shift,
             "- 通用规范：`%s`" % (SKILL_ROOT / "docs" / "scene-authoring.md"),
             "",
-            "## 原创性硬要求（违反就重画）\n",
+            "## 原创性要求（custom 场景务必遵守）\n",
             "1. **不要复刻 m01–m15 的构图骨架**：星空+剪影、雨窗、眼睛海、烟花、时钟、漩涡、燃烧的心…",
             "   这些是兜底模板，custom 场景必须为这一句另外发明画面，而不是换色重画。",
             "2. 每个 custom 场景必须围绕下表中的 `concept` 来做；`scene_type` 已分配，**相邻场景不能同类型**。",
@@ -601,7 +645,7 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
             if s["custom"]:
                 brief.append("| `%s` | %s | %.2f–%.2fs | %s | %s | `%s` |" % (
                     s["id"], cell(s["lyric"]), s["scene_start"], s["scene_end"],
-                    cell(s["scene_type"] or "（未填）"), cell(s["concept"] or "（未填）"), cell(s["tag"])))
+                    cell(s["scene_type"] or "（可选）"), cell(s["concept"] or "（未填，画师先补）"), cell(s["tag"])))
         brief.append("")
         brief.append("## 自检（注意：preview 的 `t` 是**镜头内相对时间**，不是全局时间）\n")
         brief.append("```bash")
@@ -641,6 +685,7 @@ def build_project(plan, plan_dir, out_dir, pulse_hex_override=None, do_build=Fal
         "motif_count": scene_count - custom_count,
         "required_custom": required_custom,
         "palette_shift": palette_shift,
+        "warnings": warnings,
         "custom_scenes": custom_ids,
         "pulse_hex_len": len(pulse_hex),
         "audio_file": str(clip),

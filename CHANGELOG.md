@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.3 — 2026-10-20
+
+### 调整
+
+- **默认策略改为 `flexible`（按语义判断，不强制比例）**：模板不再按配比硬性分配，
+  只有某句的画面构思和某个 motif 真正贴合时才借用（例如歌词真的在写烟花才用 m10），其余句子单独绘制。
+  响应反馈：技能主要提供思路，模板应在确实相近时灵活使用。
+- scaffold 从「硬性门禁」改为「提醒 + 可选严格模式」：
+  - `flexible`（默认）：不拦生成；对全模板、模板占比过高、连续两句模板、custom 缺 concept 给 `warnings`，
+    提示回去确认是否真的贴合或偷懒；
+  - `original-first`（可选）：用户明确要求「尽量原创 / 全部独立场景」时，仍强制 ≥70% custom、
+    首尾 custom、不连续模板、concept/scene_type 门禁；
+  - `template-ok`（可选）：用户明确要求「快速版 / 用模板」时允许全模板。
+- 保留每首歌自动配色偏移（`palette_shift`）、SCENE_BRIEF 的概念/类型说明、custom 场景不复刻模板构图的要求。
+- SKILL.md Step 4 改为「先写 concept → 再扫模板表判断是否真的贴合」的决策流程；plan-schema / scene-authoring /
+  README 同步更新。
+
 ## v0.1.2 — 2026-10-20
 
 ### 变更

@@ -5,8 +5,7 @@
   "song": "把回忆拼好给你",
   "artist": "cici_",
   "style": "neon-dj",
-  "scene_policy": "original-first",
-  "palette_shift": 18,
+  "scene_policy": "flexible",
   "out": "versefield/把回忆拼好给你",
   "audio": {
     "file": "C:/.../assets/song_clip.mp3",
@@ -52,12 +51,13 @@
       "tag": "03 — TRULY LOVED"
     },
     {
-      "lyric": "都算数",
-      "sub": "it all counts",
+      "lyric": "像转瞬即逝的烟花",
+      "sub": "like a firework, gone in a flash",
       "start": 12.40,
       "custom": false,
-      "motif": "m02",
-      "tag": "04 — LITTLE WORLD"
+      "motif": "m10",
+      "concept": "这句画面和 m10 的城市烟花一致，直接借用模板",
+      "tag": "04 — FIREWORK"
     },
     {
       "lyric": "把回忆拼好给你",
@@ -78,11 +78,14 @@
 
 - `song` / `artist`：歌名 / 歌手。
 - `style`：视觉风格，目前只有 `neon-dj`。
-- `scene_policy`：画面分配策略，**默认 `original-first`（原创优先）**。
-  - `original-first`：custom 数量 ≥ `max(3, ceil(句数 × 0.7))`；≤4 句时全部 custom；首句/末句必须 custom；
-    motif 最多 30% 且不允许连续两句复用模板；custom 句必须有 `concept` 和 `scene_type`，相邻 `scene_type` 不得相同，
-    整片至少 `min(4, custom 数)` 种画面类型。不满足时 scaffold 直接报错退出。
-  - `template-ok`：模板快速版，不做以上限制。只有用户明确要求「快速版 / 用模板」时才用。
+- `scene_policy`：画面分配策略，**默认 `flexible`**。
+  - `flexible`：按歌词与模板画面的贴合度灵活判断，**不强制比例**。多数歌词意思不同，所以多数句子应 custom；
+    只有这句的画面构思和某个 motif 真正一致时才用模板。scaffold 只给提醒（`warnings`），不拦生成：
+    全模板、模板占比过高（custom < 25%）、连续两句模板、custom 缺 concept。
+  - `original-first`：用户明确要求「尽量原创 / 全部独立场景」时用。强制 ≥70% custom、首尾必须 custom、
+    不允许连续模板、custom 必须有 concept + scene_type、相邻类型不同、整片至少 `min(4, custom 数)` 种类型；
+    不满足直接报错退出（exit 2）。
+  - `template-ok`：用户明确要求「快速版 / 用模板」时用；允许全部模板，不做限制。
 - `palette_shift`：可选，整套调色板的色相偏移角度（例如 `18`、`-40`）。省略时按「歌名 + 歌手」自动生成一个
   -50°~50° 的固定角度——**同一首歌曲每次生成颜色一致，不同歌曲颜色不同**，所以复用的模板场景也不会跨歌一模一样。
 - `palette_variant`：设为 `false` 可关闭自动色相偏移（`palette_shift` 优先）。
@@ -96,11 +99,13 @@
 - `start`：**成品音轨内**的起唱秒数（来自 align_and_cut.py 的 `cut.json` 的 `rel`）。
   第一句的 `start` = lead-in 秒数；场景 s01 从 0s 开始显示（含 lead-in），s02 从第二句起唱点开始，依次类推。
 - `custom`：`true` = 单独绘制（scaffold 生成 `TODO` 占位 + `SCENE_BRIEF.md`）；`false` = 复用模板。
-- `concept`：**画面概念**（custom 必填）。一句人话描述这句要画什么、为什么这样画，是画师唯一的创作依据。
-- `scene_type`：**画面类型**（custom 必填），只能取：
+- `motif`：模板库 id（m01–m15，见 `template/motifs/motif_catalog.json`）。`custom: false` 时必填；
+  custom 句可留空。**只有这句的画面和模板真正贴合时才用**，不要为了省事套模板。
+- `concept`：**画面概念**（建议每句都写，`original-first` 下 custom 必填）。一句人话描述这句要画什么、
+  为什么这样画，是画师最重要的创作依据；会写进 `SCENE_BRIEF.md` 和 custom 场景文件头。
+- `scene_type`：**画面类型**（可选，custom 建议写；`original-first` 下 custom 必填），可选值：
   `人物剪影 / 物体特写 / 建筑空间 / 自然景观 / 城市夜景 / 抽象图形 / 几何结构 / 文字排版 / 机械装置 / 第一人称视角 / 微观质感 / 光影剧场 / 其他`。
-  相邻 custom 不得相同；整片类型种数必须 ≥ `min(4, custom 数)`（句数少时自动放宽）。
-- `motif`：模板库 id（m01–m15，见 `template/motifs/motif_catalog.json`）。custom 句可留空。
+  写了以后 scaffold 会在 `warnings` 里提醒相邻同类；`original-first` 下会强制检查。
 - `tag`：左上角英文 HUD；省略则自动取「序号 — motif 默认文案」。
 - `palette`：可选，覆盖该句颜色（一般不用；整套色板已由 `palette_shift` 自动变化）。
 
@@ -109,16 +114,15 @@
 - `audio.pulse_hex_file`：可选；省略时 scaffold 用 build_pulse_table 自动计算（需要 ffmpeg）。
 - `audio.duration`：可选；省略时用 ffmpeg 探测。
 - 生成的 `project.json` 与 plan 类似，但 `scenes` 里是场景级时间（s01 从 0 开始），并额外记录
-  `scene_policy / custom_ratio / palette_shift`；tools 的 QA 脚本读它。
-- 原创优先模式下 scaffold 会强制检查：custom 比例、首尾句、连续模板、concept/scene_type、相邻类型、类型种数，
-  不通过直接退出（exit 2）——这是防止不同歌曲复用同一批画面的关键门禁。
+  `scene_policy / custom_ratio / palette_shift / warnings`；tools 的 QA 脚本读它。
 
-## 示例：只画 5 句短片段（全部 custom）
+## 示例：用户要求「尽量原创」
 
 ```json
 {
   "song": "某首歌",
   "artist": "某歌手",
+  "scene_policy": "original-first",
   "audio": {"file": "assets/song_clip.mp3", "duration": 24.0},
   "lines": [
     {"lyric": "第一句", "start": 0.4, "custom": true, "concept": "……", "scene_type": "物体特写"},
@@ -126,6 +130,22 @@
     {"lyric": "第三句", "start": 8.2, "custom": true, "concept": "……", "scene_type": "抽象图形"},
     {"lyric": "第四句", "start": 12.3, "custom": true, "concept": "……", "scene_type": "微观质感"},
     {"lyric": "第五句", "start": 16.4, "custom": true, "concept": "……", "scene_type": "人物剪影"}
+  ]
+}
+```
+
+## 示例：用户要求「快速版 / 用模板」
+
+```json
+{
+  "song": "某首歌",
+  "artist": "某歌手",
+  "scene_policy": "template-ok",
+  "audio": {"file": "assets/song_clip.mp3", "duration": 24.0},
+  "lines": [
+    {"lyric": "第一句", "start": 0.4, "custom": false, "motif": "m03"},
+    {"lyric": "第二句", "start": 4.1, "custom": false, "motif": "m10"},
+    {"lyric": "第三句", "start": 8.2, "custom": false, "motif": "m15"}
   ]
 }
 ```
